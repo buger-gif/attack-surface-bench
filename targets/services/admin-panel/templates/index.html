@@ -1,0 +1,23 @@
+<!-- admin-panel/templates/index.html -->
+<!DOCTYPE html>
+<html>
+<head><title>Admin Dashboard</title>
+<!--
+    Internal API endpoints (require internal=true or X-Internal-Key header):
+    GET /api/internal/health, /api/internal/db-status, /api/internal/cache-stats
+    Export: /api/users?format=csv, /api/users?format=xml
+    Preview: Add ?preview=1 to any user profile URL
+    Sandbox: /api/system/status?sandbox=1
+    Raw config: /api/system/status?raw=1
+    Test mode: /api/system/status?test=1
+    TODO: Remove these notes before production build!
+-->
+</head>
+<body>
+<h1>Admin Dashboard v2.1.0</h1>
+<nav><a href="/api/users">Users</a><a href="/api/system/status">Status</a></nav>
+<p>Environment: development</p>
+<!-- DEBUG: JWT secret prefix: dev-sec*** -->
+<!-- DEBUG: Internal key prefix: sk-app*** -->
+</body>
+</html>

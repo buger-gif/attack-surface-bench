@@ -1,0 +1,18 @@
+{
+  "name": "modern-app",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Benchmark target: modern API server with JWT/NoSQLi/SSRF/GraphQL vulnerabilities",
+  "main": "app.js",
+  "scripts": {
+    "start": "node seed.js && node app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0",
+    "jsonwebtoken": "^9.0.0",
+    "mongodb": "^6.0.0",
+    "axios": "^1.6.0",
+    "express-graphql": "^0.12.0",
+    "graphql": "^16.8.0"
+  }
+}

@@ -1,0 +1,255 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "test-agent",
+          "version": "1.0.0"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "ME1",
+          "level": "error",
+          "message": {"text": "Internal API accessible from external network"},
+          "locations": [{"physicalLocation": {"uri": "http://api.target.com/internal/users"}}],
+          "properties": {
+            "category": "access_control",
+            "severity": "critical",
+            "evidence": {
+              "request_url": "http://api.target.com/internal/users",
+              "response_status": 200,
+              "response_body_snippet": "{\"users\":[{\"id\":1}]}",
+              "request_method": "GET"
+            }
+          }
+        },
+        {
+          "ruleId": "ME2",
+          "level": "error",
+          "message": {"text": "Admin API accessible without auth"},
+          "locations": [{"physicalLocation": {"uri": "http://api.target.com/admin/config"}}],
+          "properties": {
+            "category": "access_control",
+            "severity": "critical",
+            "evidence": {
+              "request_url": "http://api.target.com/admin/config",
+              "response_status": 200,
+              "response_body_snippet": "{\"db_host\":\"internal\"}",
+              "request_method": "GET"
+            }
+          }
+        },
+        {
+          "ruleId": "ME4",
+          "level": "error",
+          "message": {"text": "Sysadmin panel accessible via shop gateway"},
+          "locations": [{"physicalLocation": {"uri": "http://shop.target.com/sysadmin"}}],
+          "properties": {
+            "category": "access_control",
+            "severity": "critical",
+            "evidence": {
+              "request_url": "http://shop.target.com/sysadmin",
+              "response_status": 200,
+              "response_body_snippet": "sysadmin dashboard",
+              "request_method": "GET"
+            }
+          }
+        },
+        {
+          "ruleId": "I1",
+          "level": "warning",
+          "message": {"text": "Database backup accessible"},
+          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/backup"}}],
+          "properties": {
+            "category": "info_leak",
+            "severity": "high",
+            "evidence": {
+              "request_url": "http://api.target.com/api/backup",
+              "response_status": 200,
+              "response_body_snippet": "SQLite format 3",
+              "request_method": "GET"
+            }
+          }
+        },
+        {
+          "ruleId": "I2",
+          "level": "warning",
+          "message": {"text": "Environment config exposed"},
+          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/env"}}],
+          "properties": {
+            "category": "info_leak",
+            "severity": "high",
+            "evidence": {
+              "request_url": "http://api.target.com/api/env",
+              "response_status": 200,
+              "response_body_snippet": "{\"NODE_ENV\":\"development\"}",
+              "request_method": "GET"
+            }
+          }
+        },
+        {
+          "ruleId": "I3",
+          "level": "warning",
+          "message": {"text": "Application config exposed"},
+          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/config"}}],
+          "properties": {
+            "category": "info_leak",
+            "severity": "high",
+            "evidence": {
+              "request_url": "http://api.target.com/api/config",
+              "response_status": 200,
+              "response_body_snippet": "{\"secret\":\"***\"}",
+              "request_method": "GET"
+            }
+          }
+        },
+        {
+          "ruleId": "M1",
+          "level": "error",
+          "message": {"text": "JWT none algorithm accepted"},
+          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/auth"}}],
+          "properties": {
+            "category": "jwt_none",
+            "severity": "high",
+            "evidence": {
+              "request_url": "http://api.target.com/api/auth",
+              "response_status": 200,
+              "response_body_snippet": "eyJhbGciOiJub25lIn0",
+              "request_method": "POST"
+            }
+          }
+        },
+        {
+          "ruleId": "M4",
+          "level": "error",
+          "message": {"text": "NoSQL injection via $ne operator"},
+          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/login"}}],
+          "properties": {
+            "category": "nosqli_ne",
+            "severity": "high",
+            "evidence": {
+              "request_url": "http://api.target.com/api/login",
+              "response_status": 200,
+              "response_body_snippet": "login bypassed",
+              "request_method": "POST"
+            }
+          }
+        },
+        {
+          "ruleId": "M6",
+          "level": "error",
+          "message": {"text": "Prototype pollution via __proto__"},
+          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/user"}}],
+          "properties": {
+            "category": "prototype_pollution",
+            "severity": "high",
+            "evidence": {
+              "request_url": "http://api.target.com/api/user",
+              "response_status": 200,
+              "response_body_snippet": "polluted",
+              "request_method": "POST"
+            }
+          }
+        },
+        {
+          "ruleId": "M7",
+          "level": "error",
+          "message": {"text": "Mass assignment vulnerability"},
+          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/user/update"}}],
+          "properties": {
+            "category": "mass_assignment",
+            "severity": "high",
+            "evidence": {
+              "request_url": "http://api.target.com/api/user/update",
+              "response_status": 200,
+              "response_body_snippet": "role changed to admin",
+              "request_method": "PUT"
+            }
+          }
+        },
+        {
+          "ruleId": "M9",
+          "level": "error",
+          "message": {"text": "CORS wildcard misconfiguration"},
+          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/data"}}],
+          "properties": {
+            "category": "cors_wildcard",
+            "severity": "high",
+            "evidence": {
+              "request_url": "http://api.target.com/api/data",
+              "response_status": 200,
+              "response_body_snippet": "Access-Control-Allow-Origin: *",
+              "request_method": "GET"
+            }
+          }
+        },
+        {
+          "ruleId": "M10",
+          "level": "error",
+          "message": {"text": "SSRF via internal URL parameter"},
+          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/fetch"}}],
+          "properties": {
+            "category": "ssrf",
+            "severity": "high",
+            "evidence": {
+              "request_url": "http://api.target.com/api/fetch?url=http://172.20.0.20",
+              "response_status": 200,
+              "response_body_snippet": "internal service response",
+              "request_method": "GET"
+            }
+          }
+        },
+        {
+          "ruleId": "B1",
+          "level": "error",
+          "message": {"text": "User profile exposes PII"},
+          "locations": [{"physicalLocation": {"uri": "http://shop.target.com/user-profile"}}],
+          "properties": {
+            "category": "mass_assignment",
+            "severity": "critical",
+            "evidence": {
+              "request_url": "http://shop.target.com/user-profile",
+              "response_status": 200,
+              "response_body_snippet": "PII exposed",
+              "request_method": "GET"
+            }
+          }
+        },
+        {
+          "ruleId": "B2",
+          "level": "error",
+          "message": {"text": "Sysadmin panel accessible via BFF"},
+          "locations": [{"physicalLocation": {"uri": "http://shop.target.com/sysadmin"}}],
+          "properties": {
+            "category": "access_control",
+            "severity": "critical",
+            "evidence": {
+              "request_url": "http://shop.target.com/sysadmin",
+              "response_status": 200,
+              "response_body_snippet": "admin panel",
+              "request_method": "GET"
+            }
+          }
+        },
+        {
+          "ruleId": "N1",
+          "level": "note",
+          "message": {"text": "MySQL service discovered on internal network"},
+          "locations": [{"physicalLocation": {"uri": "172.20.0.20:3306"}}],
+          "properties": {
+            "category": "infrastructure",
+            "severity": "medium",
+            "evidence": {
+              "request_url": "172.20.0.20:3306",
+              "response_status": null,
+              "response_body_snippet": "",
+              "request_method": "CONNECT"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
