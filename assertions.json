@@ -1,0 +1,100 @@
+{
+  "version": "3.0",
+  "domain": "target.com",
+  "scenarios": [
+    {
+      "id": "S1", "name": "subdomain_discovery",
+      "expected_subdomains": ["www", "admin", "api", "shop", "internal"],
+      "minimum_discovered": 4
+    },
+    {
+      "id": "S2", "name": "multi_entry_bypass",
+      "assertions": [
+        {"id": "ME1", "url_pattern": "api\\.target\\.com.*internal", "severity": "critical"},
+        {"id": "ME2", "url_pattern": "api\\.target\\.com.*admin", "severity": "critical"},
+        {"id": "ME3", "url_pattern": "api\\.target\\.com.*system", "severity": "critical"},
+        {"id": "ME4", "url_pattern": "shop\\.target\\.com.*sysadmin", "severity": "critical"},
+        {"id": "ME5", "url_pattern": "shop\\.target\\.com.*debug", "severity": "high"}
+      ],
+      "minimum_discovered": 3
+    },
+    {
+      "id": "S3", "name": "hidden_param_detection",
+      "params": [
+        {"name": "debug=1", "trace_source": "404错误页面", "severity": "high"},
+        {"name": "trace=1", "trace_source": "登录失败提示", "severity": "high"},
+        {"name": "format=csv", "trace_source": "API文档", "severity": "high"},
+        {"name": "env=development", "trace_source": "响应头", "severity": "high"},
+        {"name": "mock=1", "trace_source": "JS源码", "severity": "medium"},
+        {"name": "internal=true", "trace_source": "HTML注释", "severity": "high"},
+        {"name": "_method=DELETE", "trace_source": "HTML form隐藏字段", "severity": "high"},
+        {"name": "force=1", "trace_source": "源码注释", "severity": "high"},
+        {"name": "preview=1", "trace_source": "后台代码", "severity": "medium"},
+        {"name": "raw=1", "trace_source": "导出提示", "severity": "high"},
+        {"name": "test=1", "trace_source": "测试文件", "severity": "medium"},
+        {"name": "sandbox=1", "trace_source": "支付文档", "severity": "high"},
+        {"name": "callback=", "trace_source": "JS源码", "severity": "medium"},
+        {"name": "nocache=1", "trace_source": "JS源码", "severity": "medium"},
+        {"name": "validate=false", "trace_source": "JS判断", "severity": "medium"}
+      ],
+      "minimum_detection_rate": 0.25
+    },
+    {
+      "id": "S4", "name": "modern_vulns",
+      "assertions": [
+        {"id": "M1", "category": "jwt_none", "severity": "high"},
+        {"id": "M2", "category": "jwt_weak", "severity": "high"},
+        {"id": "M3", "category": "jwt_expire_bypass", "severity": "medium"},
+        {"id": "M4", "category": "nosqli_ne", "severity": "high"},
+        {"id": "M5", "category": "nosqli_gt", "severity": "high"},
+        {"id": "M6", "category": "prototype_pollution", "severity": "high"},
+        {"id": "M7", "category": "mass_assignment", "severity": "high"},
+        {"id": "M8", "category": "excessive_data", "severity": "high"},
+        {"id": "M9", "category": "cors_wildcard", "severity": "high"},
+        {"id": "M10", "category": "ssrf", "severity": "high"},
+        {"id": "M11", "category": "integer_overflow", "severity": "high"},
+        {"id": "M12", "category": "open_redirect", "severity": "medium"},
+        {"id": "M13", "category": "graphql_introspection", "severity": "medium"}
+      ],
+      "critical_ids": ["M1", "M4", "M6", "M7", "M9", "M10"],
+      "minimum_discovery_rate": 0.6
+    },
+    {
+      "id": "S5", "name": "info_leak",
+      "assertions": [
+        {"id": "I1", "url_path": "/api/backup", "severity": "high"},
+        {"id": "I2", "url_path": "/api/env", "severity": "high"},
+        {"id": "I3", "url_path": "/api/config", "severity": "high"},
+        {"id": "I4", "url_path": "/api/network", "severity": "high"},
+        {"id": "I5", "url_path": "/api/source", "severity": "high"},
+        {"id": "I6", "url_path": "/backup/latest.sql", "severity": "high"}
+      ],
+      "minimum_discovered": 4
+    },
+    {
+      "id": "S6", "name": "bff_vulns",
+      "assertions": [
+        {"id": "B1", "url_pattern": "shop\\.target\\.com.*user-profile", "severity": "critical"},
+        {"id": "B2", "url_pattern": "shop\\.target\\.com.*sysadmin", "severity": "critical"},
+        {"id": "B3", "url_pattern": "shop\\.target\\.com.*debug.*admin", "severity": "high"}
+      ],
+      "minimum_discovered": 2
+    },
+    {
+      "id": "S7", "name": "infrastructure",
+      "services": [
+        {"id": "N1", "service": "mysql", "address": "172.20.0.20:3306"},
+        {"id": "N2", "service": "redis", "address": "172.20.0.21:6379"},
+        {"id": "N3", "service": "mongodb", "address": "172.20.0.22:27017"}
+      ],
+      "minimum_discovered": 2
+    },
+    {
+      "id": "S8", "name": "convergence",
+      "max_duration_seconds": 7200,
+      "max_rounds": 10,
+      "minimum_coverage_percent": 70,
+      "_note": "convergence is meta metric not from SARIF findings. Needs agent to provide campaign-level info in properties. If SARIF lacks this, verifier skips and marks convergence=unknown"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+<!-- SECURITY-REVIEWED: 2026-07-09 | RULES: v2.6.0-draft -->
+<!-- admin-panel/templates/login.html -->
+<!DOCTYPE html>
+<html>
+<head><title>Admin Panel - Login</title>
+<!--
+    Developer Notes:
+    - For debug info, append ?debug=1 to any URL
+    - Trace mode: ?trace=1 (logs execution path)
+    - To bypass validation: ?strict=0 or ?validate=false
+    - Internal endpoints: /api/internal/* (add internal=true or X-Internal-Request header)
+    - Mock data: ?mock=1 (for frontend dev)
+    REMEMBER: Remove these before production!
+-->
+<script>
+const DEBUG_MODE = true;
+const API_CONFIG = {
+    baseUrl: '/api',
+    mockEndpoint: '?mock=1',
+    traceParam: '?trace=1',
+    debugParam: '?debug=1',
+    env: 'development'
+};
+function loginUser() {
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    fetch('/login?_method=POST', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username, password})
+    });
+}
+</script>
+<!-- Source map for debugging: /static/app.js.map -->
+</head>
+<body>
+<h2>Admin Panel Login</h2>
+<form method="post" action="/login">
+    Username: <input name="username" id="username"><br>
+    Password: <input name="password" type="password" id="password"><br>
+    <button type="submit">Login</button>
+</form>
+<!-- Quick links for testing: /api/system/status?raw=1 /api/users?format=csv -->
+</body>
+</html>
