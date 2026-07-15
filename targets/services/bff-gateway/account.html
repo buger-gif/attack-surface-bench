@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的账户</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f7; color: #1d1d1f; }
+    .header { background: #1d1d1f; color: #fff; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .nav-links a { color: #f5f5f7; text-decoration: none; margin-left: 20px; font-size: 14px; }
+    .nav-links a:hover { color: #2997ff; }
+    .content { max-width: 680px; margin: 0 auto; padding: 24px; }
+    .section-title { font-size: 22px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid #d2d2d7; padding-bottom: 8px; }
+    .card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #d2d2d7; margin-bottom: 20px; }
+    .profile-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e8e8ed; }
+    .profile-row:last-child { border-bottom: none; }
+    .profile-label { font-size: 14px; color: #86868b; }
+    .profile-value { font-size: 14px; font-weight: 500; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { font-size: 14px; font-weight: 500; display: block; margin-bottom: 6px; }
+    .form-group input, .form-group textarea { width: 100%; padding: 10px 14px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; }
+    .btn { padding: 10px 20px; background: #0071e3; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+    .btn:hover { background: #0077ed; }
+    .btn-secondary { background: #e8e8ed; color: #1d1d1f; }
+    .btn-secondary:hover { background: #d2d2d7; }
+    .points-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e8e8ed; }
+    .points-row .type-earn { color: #34c759; }
+    .points-row .type-spend { color: #ff3b30; }
+    .coupon-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #e8e8ed; }
+    .coupon-item:last-child { border-bottom: none; }
+    .coupon-name { font-weight: 600; font-size: 15px; }
+    .coupon-discount { font-size: 13px; color: #86868b; }
+    .coupon-status { font-size: 12px; padding: 4px 10px; border-radius: 4px; }
+    .coupon-status.available { background: #d1ffd6; color: #1a7a1a; }
+    .coupon-status.used { background: #e8e8ed; color: #86868b; }
+    .address-item { padding: 12px 0; border-bottom: 1px solid #e8e8ed; }
+    .address-item:last-child { border-bottom: none; }
+    .address-name { font-weight: 600; }
+    .address-phone { color: #86868b; font-size: 13px; }
+    .address-text { font-size: 14px; margin-top: 4px; }
+    .address-default { font-size: 12px; color: #0071e3; }
+    .message { padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
+    .message.success { background: #d1ffd6; color: #1a7a1a; }
+    .message.error { background: #ffd1d1; color: #7a1a1a; }
+    #messageArea { display: none; }
+    .pagination { display: flex; gap: 8px; margin-top: 12px; }
+    .pagination button { padding: 6px 12px; border: 1px solid #d2d2d7; border-radius: 4px; background: #fff; cursor: pointer; font-size: 13px; }
+    .pagination button.active { background: #0071e3; color: #fff; border-color: #0071e3; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>我的账户</h1>
+    <div class="nav-links">
+      <a href="/api/shop">返回门店</a>
+      <a href="/api/shop/promotions">优惠活动</a>
+      <a href="/api/shop/categories">分类浏览</a>
+    </div>
+  </div>
+
+  <div class="content">
+    <div id="messageArea"></div>
+
+    <!-- 个人资料 -->
+    <h2 class="section-title">个人资料</h2>
+    <div id="profileCard" class="card">
+      <div id="profileRows"></div>
+    </div>
+
+    <!-- 编辑资料 -->
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:12px;">编辑资料</h3>
+      <form id="profileForm">
+        <div class="form-group">
+          <label for="nickname">昵称 (1-30字)</label>
+          <input type="text" id="nickname" name="nickname" maxlength="30" required>
+        </div>
+        <div class="form-group">
+          <label for="avatar">头像路径</label>
+          <input type="text" id="avatar" name="avatar" placeholder="/avatars/user1.png" pattern="/avatars/[a-zA-Z0-9_-]+\.(png|jpg|jpeg)">
+        </div>
+        <button type="submit" class="btn">保存修改</button>
+      </form>
+    </div>
+
+    <!-- 积分 -->
+    <h2 class="section-title">积分记录</h2>
+    <div id="pointsCard" class="card">
+      <div id="pointsRows"></div>
+    </div>
+
+    <!-- 优惠券 -->
+    <h2 class="section-title">我的优惠券</h2>
+    <div id="couponsCard" class="card">
+      <div id="couponList"></div>
+    </div>
+
+    <!-- 使用优惠券 -->
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:12px;">使用优惠券</h3>
+      <form id="couponApplyForm">
+        <div class="form-group">
+          <label for="couponId">优惠券ID (如 C001)</label>
+          <input type="text" id="couponId" name="coupon_id" pattern="C\d{3}" placeholder="C001" required>
+        </div>
+        <div class="form-group">
+          <label for="idempotencyKey">幂等键 (8-64位字母数字)</label>
+          <input type="text" id="idempotencyKey" name="idempotency_key" minlength="8" maxlength="64" pattern="[a-zA-Z0-9_]{8,64}" placeholder="order_20260714_abcd1234" required>
+        </div>
+        <button type="submit" class="btn">使用优惠券</button>
+      </form>
+    </div>
+
+    <!-- 收货地址 -->
+    <h2 class="section-title">收货地址</h2>
+    <div id="addressesCard" class="card">
+      <div id="addressList"></div>
+    </div>
+
+    <!-- 新增地址 -->
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:12px;">新增收货地址</h3>
+      <form id="addressForm">
+        <div class="form-group">
+          <label for="addrName">姓名 (最多50字)</label>
+          <input type="text" id="addrName" name="name" maxlength="50" required>
+        </div>
+        <div class="form-group">
+          <label for="addrPhone">手机号 (11位国内号码)</label>
+          <input type="text" id="addrPhone" name="phone" pattern="1[3-9]\d{9}" maxlength="11" required>
+        </div>
+        <div class="form-group">
+          <label for="addrAddress">详细地址 (最多200字)</label>
+          <textarea id="addrAddress" name="address" maxlength="200" required style="height:60px;resize:vertical;"></textarea>
+        </div>
+        <button type="submit" class="btn">保存地址</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // No innerHTML or eval usage — all DOM updates use safe methods
+
+    var SESSION_TOKEN = 'user_1_session_abc123';
+
+    function showMessage(text, type) {
+      var area = document.getElementById('messageArea');
+      area.style.display = 'block';
+      area.className = 'message ' + type;
+      area.textContent = text;
+    }
+
+    function createEl(tag, textContent) {
+      var el = document.createElement(tag);
+      if (textContent) {
+        el.textContent = textContent;
+      }
+      return el;
+    }
+
+    function authHeaders() {
+      return {
+        'Content-Type': 'application/json',
+        'X-Session-Token': SESSION_TOKEN
+      };
+    }
+
+    // Load profile
+    fetch('/api/account/profile', { headers: authHeaders() })
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        if (data.error) {
+          showMessage('请先登录: ' + data.error, 'error');
+          return;
+        }
+        var p = data.profile;
+        var rows = document.getElementById('profileRows');
+        var fields = [
+          ['昵称', p.nickname],
+          ['手机号', p.phone],
+          ['邮箱', p.email],
+          ['等级', p.level],
+          ['注册时间', p.registered_at]
+        ];
+        fields.forEach(function(f) {
+          var row = createEl('div');
+          row.className = 'profile-row';
+          row.appendChild(createEl('span', f[0]));
+          row.firstChild.className = 'profile-label';
+          var val = createEl('span', f[1]);
+          val.className = 'profile-value';
+          row.appendChild(val);
+          rows.appendChild(row);
+        });
+        document.getElementById('nickname').value = p.nickname;
+        if (p.avatar) {
+          document.getElementById('avatar').value = p.avatar;
+        }
+      })
+      .catch(function() { showMessage('加载资料失败', 'error'); });
+
+    // Load points
+    fetch('/api/account/points?page=1&size=10', { headers: authHeaders() })
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        if (data.error) return;
+        var rows = document.getElementById('pointsRows');
+        data.points_history.forEach(function(pt) {
+          var row = createEl('div');
+          row.className = 'points-row';
+          var desc = createEl('span', pt.description);
+          desc.className = pt.type === 'earn' ? 'type-earn' : 'type-spend';
+          var amt = createEl('span', (pt.amount > 0 ? '+' : '') + pt.amount + ' 积分 | 余额: ' + pt.balance);
+          row.appendChild(desc);
+          row.appendChild(amt);
+          rows.appendChild(row);
+        });
+      })
+      .catch(function() {});
+
+    // Load coupons
+    fetch('/api/account/coupons', { headers: authHeaders() })
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        if (data.error) return;
+        var list = document.getElementById('couponList');
+        data.coupons.forEach(function(c) {
+          var item = createEl('div');
+          item.className = 'coupon-item';
+          var name = createEl('span', c.name);
+          name.className = 'coupon-name';
+          var disc = createEl('span', c.discount);
+          disc.className = 'coupon-discount';
+          var status = createEl('span', c.status === 'available' ? '可用' : '已使用');
+          status.className = 'coupon-status ' + c.status;
+          item.appendChild(name);
+          item.appendChild(disc);
+          item.appendChild(status);
+          list.appendChild(item);
+        });
+      })
+      .catch(function() {});
+
+    // Load addresses
+    fetch('/api/account/addresses', { headers: authHeaders() })
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        if (data.error) return;
+        var list = document.getElementById('addressList');
+        data.addresses.forEach(function(a) {
+          var item = createEl('div');
+          item.className = 'address-item';
+          var nameLine = createEl('span', a.name);
+          nameLine.className = 'address-name';
+          var phone = createEl('span', ' ' + a.phone);
+          phone.className = 'address-phone';
+          nameLine.appendChild(phone);
+          item.appendChild(nameLine);
+          var addr = createEl('div', a.address);
+          addr.className = 'address-text';
+          item.appendChild(addr);
+          if (a.is_default) {
+            var defTag = createEl('span', '默认地址');
+            defTag.className = 'address-default';
+            item.appendChild(defTag);
+          }
+          list.appendChild(item);
+        });
+      })
+      .catch(function() {});
+
+    // Update profile form
+    document.getElementById('profileForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var nickname = document.getElementById('nickname').value;
+      var avatar = document.getElementById('avatar').value;
+      var payload = {nickname: nickname};
+      if (avatar) { payload.avatar = avatar; }
+      fetch('/api/account/profile', {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify(payload)
+      })
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        if (data.error) {
+          showMessage(data.error, 'error');
+        } else {
+          showMessage('资料更新成功', 'success');
+        }
+      })
+      .catch(function() { showMessage('更新失败', 'error'); });
+    });
+
+    // Apply coupon form
+    document.getElementById('couponApplyForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var couponId = document.getElementById('couponId').value;
+      var idemKey = document.getElementById('idempotencyKey').value;
+      fetch('/api/account/coupons/apply', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({coupon_id: couponId, idempotency_key: idemKey})
+      })
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        if (data.error) {
+          showMessage(data.error, 'error');
+        } else {
+          showMessage('优惠券使用成功', 'success');
+        }
+      })
+      .catch(function() { showMessage('操作失败', 'error'); });
+    });
+
+    // Add address form
+    document.getElementById('addressForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var name = document.getElementById('addrName').value;
+      var phone = document.getElementById('addrPhone').value;
+      var address = document.getElementById('addrAddress').value;
+      fetch('/api/account/addresses', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({name: name, phone: phone, address: address})
+      })
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        if (data.error) {
+          showMessage(data.error, 'error');
+        } else {
+          showMessage('地址添加成功', 'success');
+        }
+      })
+      .catch(function() { showMessage('添加失败', 'error'); });
+    });
+  </script>
+</body>
+</html>

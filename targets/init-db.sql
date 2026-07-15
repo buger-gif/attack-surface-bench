@@ -18,6 +18,6 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 INSERT INTO users (username, password, email, role, balance, phone, id_card, salary, address) VALUES
-('admin', 'admin123', 'admin@target.com', 'admin', 999999, '13800138000', '110101199001011234', 50000, 'Admin HQ'),
-('zhangsan', 'zs123456', 'zhangsan@target.com', 'user', 10000, NULL, NULL, NULL, NULL),
-('lisi', 'ls123456', 'lisi@target.com', 'user', 5000, NULL, NULL, NULL, NULL);
+('admin', 'admin123', 'admin@target.bench', 'admin', 999999, '13800138000', '110101199001011234', 50000, 'Admin HQ'),
+('zhangsan', 'zs123456', 'zhangsan@target.bench', 'user', 10000, NULL, NULL, NULL, NULL),
+('lisi', 'ls123456', 'lisi@target.bench', 'user', 5000, NULL, NULL, NULL, NULL);

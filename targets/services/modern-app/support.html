@@ -1,0 +1,2135 @@
+<!-- Internal API gateway: api.target.bench -->
+<!-- Monitoring dashboard: internal.target.bench/api/monitor -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客服工单区 - ModernApp</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-light: #dbeafe;
+            --primary-dark: #1d4ed8;
+            --success: #16a34a;
+            --success-light: #dcfce7;
+            --warning: #d97706;
+            --warning-light: #fef3c7;
+            --danger: #dc2626;
+            --danger-light: #fee2e2;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --radius: 8px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-800);
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        .nav {
+            background: var(--gray-900);
+            color: white;
+            padding: 0 24px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-brand {
+            font-size: 20px;
+            font-weight: 700;
+            color: white;
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 24px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--gray-300);
+            text-decoration: none;
+            font-size: 14px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: white;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .nav-links a.active {
+            color: var(--primary-light);
+        }
+
+        .nav-user {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-user .login-btn {
+            background: var(--primary);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            transition: background 0.2s;
+        }
+
+        .nav-user .login-btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .nav-user .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .nav-user .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .nav-user .logout-btn {
+            color: var(--gray-400);
+            cursor: pointer;
+            font-size: 13px;
+            border: none;
+            background: none;
+        }
+
+        .nav-user .logout-btn:hover {
+            color: var(--danger);
+        }
+
+        /* Header Banner */
+        .support-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 40px 24px;
+            text-align: center;
+        }
+
+        .support-header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .support-header p {
+            font-size: 16px;
+            color: rgba(255,255,255,0.85);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Main Layout */
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 24px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .sidebar-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .sidebar-card h3 {
+            font-size: 14px;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+
+        .category-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .category-list li {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--gray-700);
+            transition: all 0.2s;
+        }
+
+        .category-list li:hover {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+        .category-list li .count {
+            background: var(--gray-100);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: var(--gray-500);
+        }
+
+        .sidebar-quick-links {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sidebar-quick-links a {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 14px;
+            padding: 6px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-quick-links a:hover {
+            color: var(--primary-dark);
+        }
+
+        /* Content Area */
+        .content-area {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-header h2 {
+            font-size: 18px;
+            color: var(--gray-900);
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        /* Tabs */
+        .tab-bar {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid var(--gray-200);
+            margin-bottom: 20px;
+        }
+
+        .tab-bar .tab {
+            padding: 12px 24px;
+            font-size: 15px;
+            color: var(--gray-500);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+            background: none;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+        }
+
+        .tab-bar .tab:hover {
+            color: var(--gray-700);
+        }
+
+        .tab-bar .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 6px;
+        }
+
+        .form-group label .required {
+            color: var(--danger);
+            font-weight: normal;
+        }
+
+        .form-group input[type="text"],
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 14px;
+            color: var(--gray-800);
+            background: white;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .form-group .help-text {
+            font-size: 12px;
+            color: var(--gray-400);
+            margin-top: 4px;
+        }
+
+        .priority-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .priority-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .priority-option:hover {
+            border-color: var(--primary);
+        }
+
+        .priority-option.selected {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+        .priority-option input[type="radio"] {
+            accent-color: var(--primary);
+        }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed var(--gray-300);
+            border-radius: var(--radius);
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .upload-area .upload-icon {
+            font-size: 32px;
+            color: var(--gray-400);
+            margin-bottom: 8px;
+        }
+
+        .upload-area .upload-text {
+            font-size: 14px;
+            color: var(--gray-600);
+        }
+
+        .upload-area .upload-hint {
+            font-size: 12px;
+            color: var(--gray-400);
+            margin-top: 4px;
+        }
+
+        .upload-area input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .uploaded-files {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .uploaded-file {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--gray-100);
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .uploaded-file .remove-file {
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 16px;
+            border: none;
+            background: none;
+            line-height: 1;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: var(--gray-100);
+            color: var(--gray-700);
+            border: 1px solid var(--gray-300);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-200);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: 13px;
+        }
+
+        /* Ticket List */
+        .ticket-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .ticket-item {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .ticket-item:hover {
+            border-color: var(--primary);
+            box-shadow: var(--shadow-md);
+        }
+
+        .ticket-item .ticket-id {
+            font-size: 13px;
+            color: var(--gray-500);
+            min-width: 80px;
+        }
+
+        .ticket-item .ticket-subject {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--gray-800);
+            flex: 1;
+        }
+
+        .ticket-item .ticket-category {
+            font-size: 13px;
+            color: var(--gray-500);
+            min-width: 100px;
+        }
+
+        .ticket-item .ticket-time {
+            font-size: 13px;
+            color: var(--gray-400);
+            min-width: 120px;
+        }
+
+        /* Status Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 80px;
+            justify-content: center;
+        }
+
+        .badge-open {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+
+        .badge-in-progress {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .badge-closed {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        /* Ticket Detail */
+        .ticket-detail {
+            display: none;
+        }
+
+        .ticket-detail.active {
+            display: block;
+        }
+
+        .ticket-detail-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .ticket-detail-header h2 {
+            font-size: 20px;
+            color: var(--gray-900);
+        }
+
+        .ticket-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 13px;
+            color: var(--gray-500);
+            margin-bottom: 16px;
+        }
+
+        .ticket-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .ticket-description {
+            padding: 16px 20px;
+            background: var(--gray-50);
+            border-radius: var(--radius);
+            border: 1px solid var(--gray-200);
+            margin-bottom: 24px;
+            font-size: 15px;
+            line-height: 1.7;
+        }
+
+        /* Reply Thread */
+        .reply-thread {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .reply-item {
+            display: flex;
+            gap: 12px;
+            padding: 16px;
+            border-radius: var(--radius);
+        }
+
+        .reply-item.staff {
+            background: var(--primary-light);
+        }
+
+        .reply-item.user {
+            background: var(--gray-50);
+            border: 1px solid var(--gray-200);
+        }
+
+        .reply-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .reply-item.staff .reply-avatar {
+            background: var(--primary);
+            color: white;
+        }
+
+        .reply-item.user .reply-avatar {
+            background: var(--gray-300);
+            color: var(--gray-700);
+        }
+
+        .reply-content {
+            flex: 1;
+        }
+
+        .reply-content .reply-author {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .reply-item.staff .reply-author {
+            color: var(--primary-dark);
+        }
+
+        .reply-content .reply-time {
+            font-size: 12px;
+            color: var(--gray-400);
+            margin-bottom: 8px;
+        }
+
+        .reply-content .reply-text {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .reply-attachments {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .reply-attachment {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--primary);
+            cursor: pointer;
+        }
+
+        /* Reply Form */
+        .reply-form {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            margin-top: 16px;
+        }
+
+        .reply-form textarea {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
+        }
+
+        .reply-form textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        /* FAQ Accordion */
+        .faq-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .faq-item {
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .faq-question {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: white;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--gray-800);
+            transition: background 0.2s;
+        }
+
+        .faq-question:hover {
+            background: var(--gray-50);
+        }
+
+        .faq-question .faq-arrow {
+            transition: transform 0.3s;
+            color: var(--gray-400);
+            font-size: 18px;
+        }
+
+        .faq-item.open .faq-question .faq-arrow {
+            transform: rotate(180deg);
+        }
+
+        .faq-answer {
+            display: none;
+            padding: 16px 20px;
+            background: var(--gray-50);
+            font-size: 14px;
+            line-height: 1.7;
+            color: var(--gray-600);
+        }
+
+        .faq-item.open .faq-answer {
+            display: block;
+        }
+
+        /* Toast / Notifications */
+        .toast-container {
+            position: fixed;
+            top: 70px;
+            right: 24px;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            padding: 12px 20px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            box-shadow: var(--shadow-lg);
+            animation: slideIn 0.3s ease-out;
+            max-width: 400px;
+        }
+
+        .toast-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .toast-error {
+            background: var(--danger);
+            color: white;
+        }
+
+        .toast-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Login Prompt Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 300;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: var(--radius);
+            padding: 32px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal h2 {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .modal p {
+            font-size: 14px;
+            color: var(--gray-600);
+            margin-bottom: 20px;
+        }
+
+        .modal .form-group {
+            margin-bottom: 16px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+        }
+
+        .empty-state .empty-icon {
+            font-size: 48px;
+            color: var(--gray-300);
+            margin-bottom: 12px;
+        }
+
+        .empty-state h3 {
+            font-size: 18px;
+            color: var(--gray-600);
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            color: var(--gray-400);
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 24px;
+            color: var(--gray-400);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--gray-200);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--gray-900);
+            color: var(--gray-400);
+            padding: 40px 24px 24px;
+            margin-top: 40px;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .footer-section h4 {
+            color: white;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .footer-section ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .footer-section a {
+            color: var(--gray-400);
+            text-decoration: none;
+            font-size: 13px;
+        }
+
+        .footer-section a:hover {
+            color: white;
+        }
+
+        .footer-bottom {
+            max-width: 1200px;
+            margin: 24px auto 0;
+            padding-top: 16px;
+            border-top: 1px solid var(--gray-700);
+            font-size: 12px;
+            text-align: center;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                order: 2;
+            }
+
+            .content-area {
+                order: 1;
+            }
+
+            .ticket-item {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .ticket-item .ticket-id,
+            .ticket-item .ticket-category,
+            .ticket-item .ticket-time {
+                min-width: unset;
+            }
+
+            .priority-group {
+                flex-wrap: wrap;
+            }
+
+            .footer-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="nav">
+    <a href="/" class="nav-brand">ModernApp</a>
+    <ul class="nav-links">
+        <li><a href="/shop">商城</a></li>
+        <li><a href="/community">社区</a></li>
+        <li><a href="/support" class="active">客服</a></li>
+        <li><a href="/api/docs">开发者文档</a></li>
+    </ul>
+    <div class="nav-user" id="navUser">
+        <!-- Populated by JS based on login state -->
+        <button class="login-btn" id="loginBtn" onclick="showLoginModal()">登录</button>
+    </div>
+</nav>
+
+<!-- Support Header Banner -->
+<div class="support-header">
+    <h1>客服工单区</h1>
+    <p>提交问题、跟踪进度、获取帮助。我们致力于为您提供优质的服务体验。</p>
+</div>
+
+<!-- Main Layout -->
+<div class="main-container">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-card">
+            <h3>工单分类</h3>
+            <ul class="category-list" id="sidebarCategories">
+                <li onclick="filterByCategory('all')">全部 <span class="count" id="countAll">-</span></li>
+                <!-- Populated by JS -->
+            </ul>
+        </div>
+
+        <div class="sidebar-card">
+            <h3>快捷入口</h3>
+            <ul class="sidebar-quick-links">
+                <li><a href="#" onclick="switchTab('create'); return false;">+ 提交新工单</a></li>
+                <li><a href="#" onclick="switchTab('mytickets'); return false;">查看我的工单</a></li>
+                <li><a href="#" onclick="switchTab('faq'); return false;">常见问题</a></li>
+            </ul>
+        </div>
+
+        <div class="sidebar-card">
+            <h3>服务时间</h3>
+            <div style="font-size:14px; color:var(--gray-600); line-height:1.7;">
+                <p>工作日: 09:00 - 18:00</p>
+                <p>紧急工单: 7x24 响应</p>
+                <p>平均响应: &lt; 2 小时</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content-area">
+
+        <!-- Tab Navigation -->
+        <div class="card">
+            <div class="tab-bar">
+                <button class="tab active" data-tab="mytickets" onclick="switchTab('mytickets')">我的工单</button>
+                <button class="tab" data-tab="create" onclick="switchTab('create')">提交工单</button>
+                <button class="tab" data-tab="faq" onclick="switchTab('faq')">常见问题</button>
+            </div>
+
+            <!-- My Tickets Tab -->
+            <div class="tab-content active" id="tabMytickets">
+                <div class="card-body" id="ticketListContainer">
+                    <div class="loading" id="ticketsLoading">
+                        <div class="spinner"></div>
+                        <p style="margin-top:8px;">加载工单列表...</p>
+                    </div>
+                    <div class="ticket-list" id="ticketList" style="display:none;"></div>
+                    <div class="empty-state" id="ticketsEmpty" style="display:none;">
+                        <div class="empty-icon">&#128203;</div>
+                        <h3>暂无工单</h3>
+                        <p>您还没有提交任何工单，点击"提交工单"开始创建。</p>
+                    </div>
+                </div>
+
+                <!-- Ticket Detail View -->
+                <div class="ticket-detail" id="ticketDetail">
+                    <div class="card-body">
+                        <div class="ticket-detail-header">
+                            <div>
+                                <button class="btn btn-secondary btn-sm" onclick="hideTicketDetail()">&#8592; 返回列表</button>
+                            </div>
+                            <div id="ticketDetailActions"></div>
+                        </div>
+
+                        <div id="ticketDetailSubject" style="font-size:20px; font-weight:700; margin-bottom:16px;"></div>
+
+                        <div class="ticket-meta" id="ticketDetailMeta"></div>
+
+                        <div class="ticket-description" id="ticketDetailDesc"></div>
+
+                        <div class="ticket-detail-attachments" id="ticketDetailAttachments" style="display:none; margin-bottom:24px;">
+                            <h4 style="font-size:14px; color:var(--gray-600); margin-bottom:8px;">附件</h4>
+                            <div class="reply-attachments" id="ticketAttachmentsList"></div>
+                        </div>
+
+                        <h4 style="font-size:16px; margin-bottom:12px;">对话记录</h4>
+                        <div class="reply-thread" id="replyThread"></div>
+
+                        <div class="reply-form" id="replyForm">
+                            <textarea id="replyInput" placeholder="输入回复内容..."></textarea>
+                            <button class="btn btn-primary" onclick="submitReply()">回复</button>
+                        </div>
+
+                        <div style="margin-top:16px; display:flex; gap:12px; align-items:center;" id="attachSection">
+                            <div class="upload-area" style="padding:16px; flex:1;">
+                                <input type="file" id="attachFileInput" accept="image/png,image/jpeg" onchange="handleAttach(event)">
+                                <div style="font-size:13px; color:var(--gray-600);">
+                                    &#128206; 添加附件（仅 PNG/JPEG，最大 5MB）
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Ticket Tab -->
+            <div class="tab-content" id="tabCreate">
+                <div class="card-body">
+                    <form id="createTicketForm" onsubmit="createTicket(event)">
+                        <div class="form-group">
+                            <label>主题 <span class="required">*</span></label>
+                            <input type="text" id="ticketSubject" placeholder="简要描述您的问题" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>分类 <span class="required">*</span></label>
+                            <select id="ticketCategory" required>
+                                <option value="">请选择分类</option>
+                                <!-- Populated by JS from API -->
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>问题描述 <span class="required">*</span></label>
+                            <textarea id="ticketDescription" placeholder="请详细描述您遇到的问题，包括操作步骤、错误信息等" required></textarea>
+                            <div class="help-text">详细的描述有助于我们更快定位和解决问题</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>优先级</label>
+                            <div class="priority-group" id="priorityGroup">
+                                <div class="priority-option" data-priority="low" onclick="selectPriority('low')">
+                                    <input type="radio" name="priority" value="low">
+                                    低
+                                </div>
+                                <div class="priority-option selected" data-priority="medium" onclick="selectPriority('medium')">
+                                    <input type="radio" name="priority" value="medium" checked>
+                                    中
+                                </div>
+                                <div class="priority-option" data-priority="high" onclick="selectPriority('high')">
+                                    <input type="radio" name="priority" value="high">
+                                    高
+                                </div>
+                                <div class="priority-option" data-priority="urgent" onclick="selectPriority('urgent')">
+                                    <input type="radio" name="priority" value="urgent">
+                                    紧急
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>附件（可选）</label>
+                            <div class="upload-area" id="uploadArea">
+                                <input type="file" id="fileInput" accept="image/png,image/jpeg" onchange="handleFileSelect(event)">
+                                <div class="upload-icon">&#128206;</div>
+                                <div class="upload-text">点击或拖拽上传截图</div>
+                                <div class="upload-hint">仅支持 PNG / JPEG 格式，单文件不超过 5MB</div>
+                            </div>
+                            <div class="uploaded-files" id="uploadedFiles"></div>
+                        </div>
+
+                        <div style="display:flex; gap:12px; justify-content:flex-end;">
+                            <button type="button" class="btn btn-secondary" onclick="resetCreateForm()">重置</button>
+                            <button type="submit" class="btn btn-primary">提交工单</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- FAQ Tab -->
+            <div class="tab-content" id="tabFaq">
+                <div class="card-body">
+                    <div class="loading" id="faqLoading">
+                        <div class="spinner"></div>
+                        <p style="margin-top:8px;">加载常见问题...</p>
+                    </div>
+                    <div class="faq-list" id="faqList" style="display:none;"></div>
+                    <div class="empty-state" id="faqEmpty" style="display:none;">
+                        <div class="empty-icon">&#128172;</div>
+                        <h3>暂无常见问题</h3>
+                        <p>常见问题正在整理中，您可以直接提交工单咨询。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Login Prompt Modal -->
+<div class="modal-overlay" id="loginModal">
+    <div class="modal">
+        <h2>需要登录</h2>
+        <p>工单操作需要登录账号，请输入您的用户名和密码。</p>
+        <div class="form-group">
+            <label>用户名</label>
+            <input type="text" id="modalUsername" placeholder="请输入用户名">
+        </div>
+        <div class="form-group">
+            <label>密码</label>
+            <input type="password" id="modalPassword" placeholder="请输入密码">
+        </div>
+        <div id="loginError" style="color:var(--danger); font-size:13px; margin-bottom:12px; display:none;"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideLoginModal()">取消</button>
+            <button class="btn btn-primary" onclick="doLogin()">登录</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Footer -->
+<footer class="footer">
+    <div class="footer-content">
+        <div class="footer-section">
+            <h4>产品</h4>
+            <ul>
+                <li><a href="/shop">商城</a></li>
+                <li><a href="/community">社区</a></li>
+                <li><a href="/api/docs">API 文档</a></li>
+            </ul>
+        </div>
+        <div class="footer-section">
+            <h4>支持</h4>
+            <ul>
+                <li><a href="/support">客服工单</a></li>
+                <li><a href="/support" onclick="switchTab('faq'); return false;">常见问题</a></li>
+                <li><a href="/api/docs">开发者文档</a></li>
+            </ul>
+        </div>
+        <div class="footer-section">
+            <h4>关于</h4>
+            <ul>
+                <li><a href="#">关于我们</a></li>
+                <li><a href="#">隐私政策</a></li>
+                <li><a href="#">服务条款</a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        &copy; 2026 ModernApp. 保留所有权利。
+    </div>
+</footer>
+
+<script>
+// 客服工单区 - 前端交互逻辑
+
+(function() {
+    'use strict';
+
+    // --- State ---
+    let authToken = localStorage.getItem('support_token') || null;
+    let currentUser = null;
+    let selectedPriority = 'medium';
+    let selectedFiles = [];
+    let currentTicketId = null;
+    let allTickets = [];
+    let categoryFilter = 'all';
+
+    // --- API Base ---
+    const API_BASE = '/support/api';
+
+    // --- Toast ---
+    function showToast(message, type) {
+        type = type || 'success';
+        var container = document.getElementById('toastContainer');
+        var toast = document.createElement('div');
+        toast.className = 'toast toast-' + type;
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(function() {
+            toast.remove();
+        }, 4000);
+    }
+
+    // --- Auth ---
+    function updateNavUser() {
+        var navUser = document.getElementById('navUser');
+        if (authToken && currentUser) {
+            navUser.innerHTML =
+                '<div class="user-info">' +
+                    '<div class="user-avatar">' + (currentUser.username ? currentUser.username.charAt(0).toUpperCase() : 'U') + '</div>' +
+                    '<span>' + (currentUser.username || '用户') + '</span>' +
+                '</div>' +
+                '<button class="logout-btn" onclick="window._supportLogout()">退出</button>';
+        } else {
+            navUser.innerHTML = '<button class="login-btn" id="loginBtn" onclick="window._showLoginModal()">登录</button>';
+        }
+    }
+
+    window._showLoginModal = function() {
+        document.getElementById('loginModal').classList.add('active');
+        document.getElementById('loginError').style.display = 'none';
+    };
+
+    window._hideLoginModal = function() {
+        document.getElementById('loginModal').classList.remove('active');
+    };
+
+    window._doLogin = function() {
+        var username = document.getElementById('modalUsername').value.trim();
+        var password = document.getElementById('modalPassword').value;
+        if (!username || !password) {
+            document.getElementById('loginError').textContent = '请输入用户名和密码';
+            document.getElementById('loginError').style.display = 'block';
+            return;
+        }
+        fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username, password: password })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.token) {
+                authToken = data.token;
+                localStorage.setItem('support_token', authToken);
+                currentUser = { username: username, role: data.role || 'user' };
+                localStorage.setItem('support_user', JSON.stringify(currentUser));
+                updateNavUser();
+                window._hideLoginModal();
+                showToast('登录成功', 'success');
+                loadMyTickets();
+            } else {
+                document.getElementById('loginError').textContent = data.error || '登录失败';
+                document.getElementById('loginError').style.display = 'block';
+            }
+        })
+        .catch(function(err) {
+            document.getElementById('loginError').textContent = '网络错误，请重试';
+            document.getElementById('loginError').style.display = 'block';
+        });
+    };
+
+    window._supportLogout = function() {
+        authToken = null;
+        currentUser = null;
+        localStorage.removeItem('support_token');
+        localStorage.removeItem('support_user');
+        updateNavUser();
+        showToast('已退出登录', 'success');
+        loadMyTickets();
+    };
+
+    // Expose for onclick handlers in HTML
+    window.showLoginModal = window._showLoginModal;
+    window.hideLoginModal = window._hideLoginModal;
+    window.doLogin = window._doLogin;
+
+    // --- Handle 401 ---
+    function handleAuthError(response) {
+        if (response.status === 401) {
+            showToast('需要登录才能执行此操作', 'warning');
+            window._showLoginModal();
+            return true;
+        }
+        return false;
+    }
+
+    function authHeaders() {
+        var headers = { 'Content-Type': 'application/json' };
+        if (authToken) {
+            headers['Authorization'] = 'Bearer ' + authToken;
+        }
+        return headers;
+    }
+
+    // --- Tabs ---
+    window.switchTab = function(tabName) {
+        var tabs = document.querySelectorAll('.tab-bar .tab');
+        var contents = document.querySelectorAll('.tab-content');
+        tabs.forEach(function(t) {
+            t.classList.toggle('active', t.getAttribute('data-tab') === tabName);
+        });
+        contents.forEach(function(c) {
+            c.classList.toggle('active', c.id === 'tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
+        });
+
+        if (tabName === 'mytickets') {
+            hideTicketDetail();
+            loadMyTickets();
+        }
+        if (tabName === 'faq') {
+            loadFaq();
+        }
+    };
+
+    // --- Priority Selection ---
+    window.selectPriority = function(priority) {
+        selectedPriority = priority;
+        var options = document.querySelectorAll('.priority-option');
+        options.forEach(function(opt) {
+            opt.classList.toggle('selected', opt.getAttribute('data-priority') === priority);
+            var radio = opt.querySelector('input[type="radio"]');
+            if (radio) radio.checked = (opt.getAttribute('data-priority') === priority);
+        });
+    };
+
+    // --- File Upload (create form) ---
+    window.handleFileSelect = function(event) {
+        var file = event.target.files[0];
+        if (!file) return;
+
+        if (file.type !== 'image/png' && file.type !== 'image/jpeg') {
+            showToast('仅支持 PNG 和 JPEG 格式', 'error');
+            event.target.value = '';
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            showToast('文件大小不能超过 5MB', 'error');
+            event.target.value = '';
+            return;
+        }
+
+        selectedFiles.push(file);
+        renderUploadedFiles();
+        event.target.value = '';
+    };
+
+    function renderUploadedFiles() {
+        var container = document.getElementById('uploadedFiles');
+        container.innerHTML = '';
+        selectedFiles.forEach(function(file, index) {
+            var div = document.createElement('div');
+            div.className = 'uploaded-file';
+            div.innerHTML =
+                '<span>' + file.name + '</span>' +
+                '<span style="color:var(--gray-400);">(' + (file.size / 1024).toFixed(1) + 'KB)</span>' +
+                '<button class="remove-file" onclick="window._removeFile(' + index + ')">&times;</button>';
+            container.appendChild(div);
+        });
+    }
+
+    window._removeFile = function(index) {
+        selectedFiles.splice(index, 1);
+        renderUploadedFiles();
+    };
+
+    window.resetCreateForm = function() {
+        document.getElementById('createTicketForm').reset();
+        selectedFiles = [];
+        renderUploadedFiles();
+        selectPriority('medium');
+    };
+
+    // --- Create Ticket ---
+    window.createTicket = function(event) {
+        event.preventDefault();
+
+        if (!authToken) {
+            showToast('需要登录才能提交工单', 'warning');
+            window._showLoginModal();
+            return;
+        }
+
+        var subject = document.getElementById('ticketSubject').value.trim();
+        var category = document.getElementById('ticketCategory').value;
+        var description = document.getElementById('ticketDescription').value.trim();
+
+        if (!subject || !category || !description) {
+            showToast('请填写所有必填项', 'error');
+            return;
+        }
+
+        fetch(API_BASE + '/tickets', {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({
+                subject: subject,
+                category: category,
+                description: description,
+                priority: selectedPriority
+            })
+        })
+        .then(function(res) {
+            if (handleAuthError(res)) return null;
+            return res.json();
+        })
+        .then(function(data) {
+            if (!data) return;
+            if (data.error) {
+                showToast(data.error, 'error');
+                return;
+            }
+            showToast('工单创建成功', 'success');
+
+            // Upload attachments if any files selected and ticket has ID
+            if (selectedFiles.length > 0 && data._id) {
+                uploadAttachmentsForTicket(data._id, selectedFiles);
+            }
+
+            resetCreateForm();
+            switchTab('mytickets');
+        })
+        .catch(function(err) {
+            showToast('创建失败: ' + err.message, 'error');
+        });
+    };
+
+    function uploadAttachmentsForTicket(ticketId, files) {
+        files.forEach(function(file) {
+            var formData = new FormData();
+            formData.append('file', file);
+            fetch(API_BASE + '/tickets/' + ticketId + '/attach', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + authToken },
+                body: formData
+            })
+            .then(function(res) {
+                if (res.ok) {
+                    showToast('附件上传成功: ' + file.name, 'success');
+                } else {
+                    showToast('附件上传失败: ' + file.name, 'error');
+                }
+            })
+            .catch(function() {
+                showToast('附件上传失败: ' + file.name, 'error');
+            });
+        });
+    }
+
+    // --- Load Categories ---
+    function loadCategories() {
+        fetch(API_BASE + '/categories')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.error) return;
+            var categories = data.categories || data || [];
+
+            // Populate dropdown
+            var select = document.getElementById('ticketCategory');
+            select.innerHTML = '<option value="">请选择分类</option>';
+            categories.forEach(function(cat) {
+                var option = document.createElement('option');
+                option.value = cat.id || cat.key || cat.name;
+                option.textContent = cat.name || cat.label;
+                select.appendChild(option);
+            });
+
+            // Populate sidebar
+            var sidebar = document.getElementById('sidebarCategories');
+            sidebar.innerHTML =
+                '<li onclick="window._filterByCategory(\'all\')">全部 <span class="count" id="countAll">-</span></li>';
+            categories.forEach(function(cat) {
+                var key = cat.id || cat.key || cat.name;
+                var li = document.createElement('li');
+                li.setAttribute('onclick', 'window._filterByCategory(\'' + key + '\')');
+                li.innerHTML = (cat.name || cat.label) + ' <span class="count" id="count_' + key + '">-</span>';
+                sidebar.appendChild(li);
+            });
+        })
+        .catch(function() {
+            // Use fallback categories
+            var fallback = [
+                { key: 'account', name: '账号问题' },
+                { key: 'order', name: '订单/支付' },
+                { key: 'product', name: '产品咨询' },
+                { key: 'tech', name: '技术支持' },
+                { key: 'complaint', name: '投诉建议' }
+            ];
+            var select = document.getElementById('ticketCategory');
+            select.innerHTML = '<option value="">请选择分类</option>';
+            fallback.forEach(function(cat) {
+                var option = document.createElement('option');
+                option.value = cat.key;
+                option.textContent = cat.name;
+                select.appendChild(option);
+            });
+
+            var sidebar = document.getElementById('sidebarCategories');
+            sidebar.innerHTML =
+                '<li onclick="window._filterByCategory(\'all\')">全部 <span class="count" id="countAll">-</span></li>';
+            fallback.forEach(function(cat) {
+                var li = document.createElement('li');
+                li.setAttribute('onclick', 'window._filterByCategory(\'' + cat.key + '\')');
+                li.innerHTML = cat.name + ' <span class="count" id="count_' + cat.key + '">-</span>';
+                sidebar.appendChild(li);
+            });
+        });
+    }
+
+    // --- Load My Tickets ---
+    function loadMyTickets() {
+        var loading = document.getElementById('ticketsLoading');
+        var list = document.getElementById('ticketList');
+        var empty = document.getElementById('ticketsEmpty');
+
+        if (!authToken) {
+            loading.style.display = 'none';
+            list.style.display = 'none';
+            empty.style.display = 'block';
+            empty.querySelector('h3').textContent = '请先登录';
+            empty.querySelector('p').textContent = '登录后即可查看您的工单列表。';
+            return;
+        }
+
+        loading.style.display = 'block';
+        list.style.display = 'none';
+        empty.style.display = 'none';
+
+        fetch(API_BASE + '/tickets', {
+            headers: authHeaders()
+        })
+        .then(function(res) {
+            if (handleAuthError(res)) return null;
+            return res.json();
+        })
+        .then(function(data) {
+            loading.style.display = 'none';
+            if (!data) return;
+
+            if (data.error) {
+                showToast(data.error, 'error');
+                return;
+            }
+
+            allTickets = data.tickets || data || [];
+
+            if (allTickets.length === 0) {
+                empty.style.display = 'block';
+                empty.querySelector('h3').textContent = '暂无工单';
+                empty.querySelector('p').textContent = '您还没有提交任何工单，点击"提交工单"开始创建。';
+                list.style.display = 'none';
+            } else {
+                renderTicketList(allTickets);
+                list.style.display = 'flex';
+                empty.style.display = 'none';
+            }
+
+            updateCategoryCounts();
+        })
+        .catch(function(err) {
+            loading.style.display = 'none';
+            showToast('加载工单失败', 'error');
+        });
+    }
+
+    function renderTicketList(tickets) {
+        var list = document.getElementById('ticketList');
+        list.innerHTML = '';
+
+        tickets.forEach(function(ticket) {
+            var item = document.createElement('div');
+            item.className = 'ticket-item';
+            item.onclick = function() { showTicketDetail(ticket._id || ticket.id); };
+
+            var statusClass = 'badge-open';
+            var statusText = '待处理';
+            if (ticket.status === 'in_progress' || ticket.status === 'in-progress') {
+                statusClass = 'badge-in-progress';
+                statusText = '处理中';
+            } else if (ticket.status === 'closed' || ticket.status === 'resolved') {
+                statusClass = 'badge-closed';
+                statusText = '已关闭';
+            }
+
+            var priorityLabel = '';
+            var priorityMap = { low: '低', medium: '中', high: '高', urgent: '紧急' };
+            priorityLabel = priorityMap[ticket.priority] || ticket.priority || '';
+
+            var timeStr = '';
+            if (ticket.createdAt) {
+                timeStr = new Date(ticket.createdAt).toLocaleString('zh-CN');
+            } else if (ticket.created_at) {
+                timeStr = new Date(ticket.created_at).toLocaleString('zh-CN');
+            }
+
+            item.innerHTML =
+                '<span class="ticket-id">#' + (ticket._id || ticket.id || '').substring(0, 8) + '</span>' +
+                '<span class="ticket-subject">' + (ticket.subject || '') + '</span>' +
+                '<span class="ticket-category">' + (ticket.category || '') + '</span>' +
+                '<span class="badge ' + statusClass + '">' + statusText + '</span>' +
+                (priorityLabel ? '<span style="font-size:12px; color:var(--warning);">' + priorityLabel + '</span>' : '') +
+                '<span class="ticket-time">' + timeStr + '</span>';
+
+            list.appendChild(item);
+        });
+    }
+
+    function updateCategoryCounts() {
+        var countAll = document.getElementById('countAll');
+        if (countAll) countAll.textContent = allTickets.length;
+
+        allTickets.forEach(function(ticket) {
+            var catKey = ticket.category || '';
+            var countEl = document.getElementById('count_' + catKey);
+            if (countEl) {
+                var current = parseInt(countEl.textContent) || 0;
+                countEl.textContent = current + 1;
+            }
+        });
+    }
+
+    // --- Category Filter ---
+    window._filterByCategory = function(category) {
+        categoryFilter = category;
+        if (category === 'all') {
+            renderTicketList(allTickets);
+        } else {
+            var filtered = allTickets.filter(function(t) {
+                return (t.category || '') === category;
+            });
+            renderTicketList(filtered);
+        }
+        // Highlight selected
+        var items = document.querySelectorAll('.category-list li');
+        items.forEach(function(li) {
+            // Simple highlight
+        });
+    };
+
+    // --- Ticket Detail ---
+    window.showTicketDetail = function(ticketId) {
+        currentTicketId = ticketId;
+
+        fetch(API_BASE + '/tickets/' + ticketId, {
+            headers: authHeaders()
+        })
+        .then(function(res) {
+            if (handleAuthError(res)) return null;
+            if (res.status === 403) {
+                showToast('无法查看此工单（不是您的工单）', 'error');
+                return null;
+            }
+            return res.json();
+        })
+        .then(function(data) {
+            if (!data) return;
+            if (data.error) {
+                showToast(data.error, 'error');
+                return;
+            }
+            renderTicketDetail(data);
+        })
+        .catch(function(err) {
+            showToast('加载工单详情失败', 'error');
+        });
+    };
+
+    function renderTicketDetail(ticket) {
+        // Hide list, show detail
+        document.getElementById('ticketListContainer').querySelector('.ticket-list').style.display = 'none';
+        document.getElementById('ticketsEmpty').style.display = 'none';
+        document.getElementById('ticketsLoading').style.display = 'none';
+        document.getElementById('ticketDetail').classList.add('active');
+
+        // Subject
+        document.getElementById('ticketDetailSubject').textContent = ticket.subject || '';
+
+        // Meta
+        var statusClass = 'badge-open';
+        var statusText = '待处理';
+        if (ticket.status === 'in_progress' || ticket.status === 'in-progress') {
+            statusClass = 'badge-in-progress';
+            statusText = '处理中';
+        } else if (ticket.status === 'closed' || ticket.status === 'resolved') {
+            statusClass = 'badge-closed';
+            statusText = '已关闭';
+        }
+
+        var priorityMap = { low: '低', medium: '中', high: '高', urgent: '紧急' };
+        var priorityText = priorityMap[ticket.priority] || ticket.priority || '';
+
+        var timeStr = '';
+        if (ticket.createdAt) {
+            timeStr = new Date(ticket.createdAt).toLocaleString('zh-CN');
+        } else if (ticket.created_at) {
+            timeStr = new Date(ticket.created_at).toLocaleString('zh-CN');
+        }
+
+        document.getElementById('ticketDetailMeta').innerHTML =
+            '<span><span class="badge ' + statusClass + '">' + statusText + '</span></span>' +
+            '<span>分类: ' + (ticket.category || '') + '</span>' +
+            '<span>优先级: ' + priorityText + '</span>' +
+            '<span>创建时间: ' + timeStr + '</span>';
+
+        // Description
+        document.getElementById('ticketDetailDesc').textContent = ticket.description || '';
+
+        // Actions
+        var actionsHtml = '';
+        if (ticket.status !== 'closed' && ticket.status !== 'resolved') {
+            actionsHtml = '<button class="btn btn-danger btn-sm" onclick="window._closeTicket()">关闭工单</button>';
+        }
+        document.getElementById('ticketDetailActions').innerHTML = actionsHtml;
+
+        // Show/hide reply form based on ticket status
+        var replyFormEl = document.getElementById('replyForm');
+        var attachSectionEl = document.getElementById('attachSection');
+        if (ticket.status === 'closed' || ticket.status === 'resolved') {
+            replyFormEl.style.display = 'none';
+            attachSectionEl.style.display = 'none';
+        } else {
+            replyFormEl.style.display = 'flex';
+            attachSectionEl.style.display = 'flex';
+        }
+
+        // Attachments
+        var attachments = ticket.attachments || [];
+        if (attachments.length > 0) {
+            document.getElementById('ticketDetailAttachments').style.display = 'block';
+            var attList = document.getElementById('ticketAttachmentsList');
+            attList.innerHTML = '';
+            attachments.forEach(function(att) {
+                var attEl = document.createElement('span');
+                attEl.className = 'reply-attachment';
+                attEl.innerHTML = '&#128206; ' + (att.filename || att.name || '附件');
+                attList.appendChild(attEl);
+            });
+        } else {
+            document.getElementById('ticketDetailAttachments').style.display = 'none';
+        }
+
+        // Replies
+        var replies = ticket.replies || [];
+        var replyThread = document.getElementById('replyThread');
+        replyThread.innerHTML = '';
+        replies.forEach(function(reply) {
+            var isStaff = reply.isStaff || reply.role === 'admin' || reply.role === 'staff';
+            var replyItem = document.createElement('div');
+            replyItem.className = 'reply-item ' + (isStaff ? 'staff' : 'user');
+
+            var authorName = reply.author || (isStaff ? '客服专员' : currentUser ? currentUser.username : '用户');
+            var replyTime = reply.createdAt ? new Date(reply.createdAt).toLocaleString('zh-CN') :
+                            reply.created_at ? new Date(reply.created_at).toLocaleString('zh-CN') : '';
+
+            replyItem.innerHTML =
+                '<div class="reply-avatar">' + authorName.charAt(0).toUpperCase() + '</div>' +
+                '<div class="reply-content">' +
+                    '<div class="reply-author">' + authorName + (isStaff ? ' (客服)' : '') + '</div>' +
+                    '<div class="reply-time">' + replyTime + '</div>' +
+                    '<div class="reply-text">' + (reply.content || reply.text || reply.message || '') + '</div>' +
+                '</div>';
+
+            replyThread.appendChild(replyItem);
+        });
+
+        if (replies.length === 0) {
+            replyThread.innerHTML = '<div style="text-align:center; padding:16px; color:var(--gray-400);">暂无回复</div>';
+        }
+    }
+
+    window.hideTicketDetail = function() {
+        document.getElementById('ticketDetail').classList.remove('active');
+        currentTicketId = null;
+        // Re-show ticket list
+        var ticketList = document.getElementById('ticketList');
+        var empty = document.getElementById('ticketsEmpty');
+        if (allTickets.length > 0) {
+            ticketList.style.display = 'flex';
+            empty.style.display = 'none';
+        } else {
+            ticketList.style.display = 'none';
+            empty.style.display = 'block';
+        }
+    };
+
+    // --- Submit Reply ---
+    window.submitReply = function() {
+        if (!currentTicketId) return;
+        var input = document.getElementById('replyInput');
+        var content = input.value.trim();
+        if (!content) {
+            showToast('请输入回复内容', 'error');
+            return;
+        }
+        if (!authToken) {
+            showToast('需要登录才能回复', 'warning');
+            window._showLoginModal();
+            return;
+        }
+
+        fetch(API_BASE + '/tickets/' + currentTicketId + '/replies', {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ content: content })
+        })
+        .then(function(res) {
+            if (handleAuthError(res)) return null;
+            if (res.status === 403) {
+                showToast('无法回复此工单（不是您的工单）', 'error');
+                return null;
+            }
+            return res.json();
+        })
+        .then(function(data) {
+            if (!data) return;
+            if (data.error) {
+                showToast(data.error, 'error');
+                return;
+            }
+            showToast('回复成功', 'success');
+            input.value = '';
+            // Reload detail
+            showTicketDetail(currentTicketId);
+        })
+        .catch(function(err) {
+            showToast('回复失败: ' + err.message, 'error');
+        });
+    };
+
+    // --- Close Ticket ---
+    window._closeTicket = function() {
+        if (!currentTicketId) return;
+        if (!authToken) {
+            showToast('需要登录才能操作', 'warning');
+            window._showLoginModal();
+            return;
+        }
+
+        fetch(API_BASE + '/tickets/' + currentTicketId + '/close', {
+            method: 'PUT',
+            headers: authHeaders()
+        })
+        .then(function(res) {
+            if (handleAuthError(res)) return null;
+            if (res.status === 403) {
+                showToast('无法关闭此工单（不是您的工单）', 'error');
+                return null;
+            }
+            return res.json();
+        })
+        .then(function(data) {
+            if (!data) return;
+            if (data.error) {
+                showToast(data.error, 'error');
+                return;
+            }
+            showToast('工单已关闭', 'success');
+            showTicketDetail(currentTicketId);
+        })
+        .catch(function(err) {
+            showToast('操作失败: ' + err.message, 'error');
+        });
+    };
+
+    // --- Attach File to Ticket ---
+    window.handleAttach = function(event) {
+        var file = event.target.files[0];
+        if (!file) return;
+
+        if (file.type !== 'image/png' && file.type !== 'image/jpeg') {
+            showToast('仅支持 PNG 和 JPEG 格式', 'error');
+            event.target.value = '';
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            showToast('文件大小不能超过 5MB', 'error');
+            event.target.value = '';
+            return;
+        }
+
+        if (!currentTicketId || !authToken) {
+            showToast('需要登录并打开工单才能上传附件', 'warning');
+            window._showLoginModal();
+            event.target.value = '';
+            return;
+        }
+
+        var formData = new FormData();
+        formData.append('file', file);
+
+        fetch(API_BASE + '/tickets/' + currentTicketId + '/attach', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + authToken },
+            body: formData
+        })
+        .then(function(res) {
+            if (handleAuthError(res)) return null;
+            if (res.status === 403) {
+                showToast('无法上传附件到此工单', 'error');
+                return null;
+            }
+            return res.json();
+        })
+        .then(function(data) {
+            if (!data) return;
+            if (data.error) {
+                showToast(data.error, 'error');
+                return;
+            }
+            showToast('附件上传成功', 'success');
+            event.target.value = '';
+            showTicketDetail(currentTicketId);
+        })
+        .catch(function(err) {
+            showToast('上传失败: ' + err.message, 'error');
+            event.target.value = '';
+        });
+    };
+
+    // --- Load FAQ ---
+    function loadFaq() {
+        var loading = document.getElementById('faqLoading');
+        var list = document.getElementById('faqList');
+        var empty = document.getElementById('faqEmpty');
+
+        loading.style.display = 'block';
+        list.style.display = 'none';
+        empty.style.display = 'none';
+
+        fetch(API_BASE + '/faq')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            loading.style.display = 'none';
+            if (data.error) {
+                empty.style.display = 'block';
+                return;
+            }
+
+            var faqs = data.faqs || data || [];
+
+            if (faqs.length === 0) {
+                empty.style.display = 'block';
+                return;
+            }
+
+            list.innerHTML = '';
+            faqs.forEach(function(faq, index) {
+                var item = document.createElement('div');
+                item.className = 'faq-item';
+                item.innerHTML =
+                    '<div class="faq-question" onclick="window._toggleFaq(' + index + ')">' +
+                        '<span>' + (faq.question || faq.title || faq.q || '') + '</span>' +
+                        '<span class="faq-arrow">&#9660;</span>' +
+                    '</div>' +
+                    '<div class="faq-answer">' + (faq.answer || faq.content || faq.a || '') + '</div>';
+                list.appendChild(item);
+            });
+
+            list.style.display = 'flex';
+        })
+        .catch(function() {
+            loading.style.display = 'none';
+            // Fallback FAQ
+            var fallbackFaqs = [
+                { question: '如何注册账号？', answer: '点击页面右上角的"登录"按钮，选择注册。填写用户名、邮箱和密码即可完成注册。' },
+                { question: '如何修改密码？', answer: '登录后进入个人设置页面，点击"修改密码"，输入当前密码和新密码即可。' },
+                { question: '订单支付失败怎么办？', answer: '请检查支付账户余额是否充足，或尝试更换支付方式。如果问题持续，请提交工单联系客服。' },
+                { question: '如何申请退款？', answer: '在订单详情页面点击"申请退款"，填写退款原因。退款将在3-5个工作日内处理。' },
+                { question: '商品出现质量问题怎么办？', answer: '请在收到商品后7天内提交工单，选择"投诉建议"分类，附上商品照片和问题描述，我们会尽快处理。' },
+                { question: 'API接口调用报错怎么排查？', answer: '请先查看开发者文档(/api/docs)确认接口参数是否正确。如果问题持续，请提交技术支持工单并附上请求详情。' }
+            ];
+
+            var list = document.getElementById('faqList');
+            list.innerHTML = '';
+            fallbackFaqs.forEach(function(faq, index) {
+                var item = document.createElement('div');
+                item.className = 'faq-item';
+                item.innerHTML =
+                    '<div class="faq-question" onclick="window._toggleFaq(' + index + ')">' +
+                        '<span>' + faq.question + '</span>' +
+                        '<span class="faq-arrow">&#9660;</span>' +
+                    '</div>' +
+                    '<div class="faq-answer">' + faq.answer + '</div>';
+                list.appendChild(item);
+            });
+            list.style.display = 'flex';
+        });
+    }
+
+    // --- Toggle FAQ ---
+    window._toggleFaq = function(index) {
+        var items = document.querySelectorAll('.faq-item');
+        if (items[index]) {
+            items[index].classList.toggle('open');
+        }
+    };
+
+    // --- Init ---
+    function init() {
+        // Restore user from localStorage
+        var storedUser = localStorage.getItem('support_user');
+        if (storedUser) {
+            try {
+                currentUser = JSON.parse(storedUser);
+            } catch (e) {
+                currentUser = null;
+            }
+        }
+        updateNavUser();
+        loadCategories();
+        loadMyTickets();
+    }
+
+    init();
+
+})();
+</script>
+
+</body>
+</html>

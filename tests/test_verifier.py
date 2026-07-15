@@ -6,13 +6,13 @@ from secptest_benchmark.verifier import Verifier, ScenarioComparison, Verificati
 
 def _make_suite() -> AssertionSuite:
     return AssertionSuite(
-        version="3.0", domain="target.com",
+        version="3.0", domain="target.bench",
         scenarios=[
             Scenario(id="S2", name="multi_entry_bypass",
                 assertions=[
-                    AssertionItem(id="ME1", url_pattern=r"api\.target\.com.*internal", severity="critical"),
-                    AssertionItem(id="ME2", url_pattern=r"api\.target\.com.*admin", severity="critical"),
-                    AssertionItem(id="ME4", url_pattern=r"shop\.target\.com.*sysadmin", severity="critical"),
+                    AssertionItem(id="ME1", url_pattern=r"api\.target\.bench.*internal", severity="critical"),
+                    AssertionItem(id="ME2", url_pattern=r"api\.target\.bench.*admin", severity="critical"),
+                    AssertionItem(id="ME4", url_pattern=r"shop\.target\.bench.*sysadmin", severity="critical"),
                 ], minimum_discovered=2),
             Scenario(id="S5", name="info_leak",
                 assertions=[
@@ -25,13 +25,13 @@ def _make_suite() -> AssertionSuite:
 
 def _make_findings() -> list[SarifResult]:
     return [
-        SarifResult(rule_id="ME1", uri="http://api.target.com/api/internal/users",
-            message="api.target.com bypass", category="multi_entry_bypass",
-            evidence={"request_url": "http://api.target.com/api/internal/users", "response_status": 200}, severity="critical"),
-        SarifResult(rule_id="I1", uri="http://internal.target.com/api/backup",
+        SarifResult(rule_id="ME1", uri="http://api.target.bench/api/internal/users",
+            message="api.target.bench bypass", category="multi_entry_bypass",
+            evidence={"request_url": "http://api.target.bench/api/internal/users", "response_status": 200}, severity="critical"),
+        SarifResult(rule_id="I1", uri="http://internal.target.bench/api/backup",
             message="backup info leak", category="info_leak",
-            evidence={"request_url": "http://internal.target.com/api/backup"}, severity="high"),
-        SarifResult(rule_id=None, uri="http://www.target.com/unknown",
+            evidence={"request_url": "http://internal.target.bench/api/backup"}, severity="high"),
+        SarifResult(rule_id=None, uri="http://www.target.bench/unknown",
             message="unknown finding", category=None, severity="medium"),
     ]
 
@@ -39,29 +39,29 @@ def _make_findings() -> list[SarifResult]:
 def test_verifier_returns_verification_report():
     report = Verifier().verify(_make_findings(), _make_suite())
     assert isinstance(report, VerificationReport)
-    assert report.domain == "target.com"
+    assert report.domain == "target.bench"
 
 
 def test_verifier_matches_by_rule_id():
-    findings = [SarifResult(rule_id="ME2", uri="http://api.target.com/admin/login")]
+    findings = [SarifResult(rule_id="ME2", uri="http://api.target.bench/admin/login")]
     report = Verifier().verify(findings, _make_suite())
     assert any(m.assertion_id == "ME2" for m in report.scenarios[0].discovered)
 
 
 def test_verifier_matches_by_url_pattern():
-    findings = [SarifResult(rule_id="XYZ", uri="http://api.target.com/api/internal/health")]
+    findings = [SarifResult(rule_id="XYZ", uri="http://api.target.bench/api/internal/health")]
     report = Verifier().verify(findings, _make_suite())
     assert any(m.assertion_id == "ME1" for m in report.scenarios[0].discovered)
 
 
 def test_verifier_matches_by_url_path():
-    findings = [SarifResult(rule_id="XYZ", uri="http://internal.target.com/api/backup")]
+    findings = [SarifResult(rule_id="XYZ", uri="http://internal.target.bench/api/backup")]
     report = Verifier().verify(findings, _make_suite())
     assert any(m.assertion_id == "I1" for m in report.scenarios[1].discovered)
 
 
 def test_verifier_identifies_missing():
-    findings = [SarifResult(rule_id="ME1", uri="http://api.target.com/api/internal/users")]
+    findings = [SarifResult(rule_id="ME1", uri="http://api.target.bench/api/internal/users")]
     report = Verifier().verify(findings, _make_suite())
     missing_ids = [m.assertion_id for m in report.scenarios[0].missing]
     assert "ME2" in missing_ids
@@ -74,15 +74,15 @@ def test_verifier_identifies_extra():
 
 
 def test_verifier_confidence_confirmed():
-    findings = [SarifResult(rule_id="ME1", uri="http://api.target.com/api/internal/users",
-        evidence={"request_url": "http://api.target.com/api/internal/users", "response_status": 200})]
+    findings = [SarifResult(rule_id="ME1", uri="http://api.target.bench/api/internal/users",
+        evidence={"request_url": "http://api.target.bench/api/internal/users", "response_status": 200})]
     report = Verifier().verify(findings, _make_suite())
     matched = next(m for m in report.scenarios[0].discovered if m.assertion_id == "ME1")
     assert matched.confidence == "confirmed"
 
 
 def test_verifier_confidence_unconfirmed():
-    findings = [SarifResult(rule_id="ME1", uri="http://api.target.com/api/internal/users")]
+    findings = [SarifResult(rule_id="ME1", uri="http://api.target.bench/api/internal/users")]
     report = Verifier().verify(findings, _make_suite())
     matched = next(m for m in report.scenarios[0].discovered if m.assertion_id == "ME1")
     assert matched.confidence == "unconfirmed"

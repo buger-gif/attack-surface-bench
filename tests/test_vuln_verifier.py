@@ -32,15 +32,15 @@ class TestBuildTestCases:
         """S4 should have at least 13 vuln tests (M1-M13 in assertions.json)."""
         cases = _build_test_cases("http://localhost:8080")
         s4_cases = [tc for tc in cases if tc.scenario_id == "S4"]
-        # M1-M13 + M14-M17 + M_INTERNAL_CFG + M_INTERNAL_DB = 19
-        assert len(s4_cases) >= 19, f"S4 has {len(s4_cases)} cases, expected >= 19"
+        # M1-M13 + M_INTERNAL_CFG + M_INTERNAL_DB = 17 (post trimming)
+        assert len(s4_cases) >= 17, f"S4 has {len(s4_cases)} cases, expected >= 17"
 
     def test_s3_hidden_params_has_15_plus(self):
         """S3 should have at least 15 hidden param tests."""
         cases = _build_test_cases("http://localhost:8080")
         s3_cases = [tc for tc in cases if tc.scenario_id == "S3"]
-        # 15 hidden params + 3 pickle/xxe/header + 3 internal endpoints + 3 comment leaks + 404 debug = 25
-        assert len(s3_cases) >= 24, f"S3 has {len(s3_cases)} cases, expected >= 24"
+        # hidden params + pickle/xxe/header + internal endpoints + comment leaks = 21 (post trimming)
+        assert len(s3_cases) >= 21, f"S3 has {len(s3_cases)} cases, expected >= 21"
 
     def test_s5_info_leak_has_6(self):
         """S5 should have exactly 6 info leak tests (I1-I6)."""
@@ -143,6 +143,7 @@ class TestVulnTestCase:
         assert tc.body is None
         assert tc.expected_flags == []
         assert tc.severity == "medium"
+        assert tc.follow_redirects is True
 
     def test_with_flags(self):
         tc = VulnTestCase(

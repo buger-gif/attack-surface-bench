@@ -1,0 +1,479 @@
+<!-- admin-panel/templates/hr.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人事管理 - Admin Panel</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f6fa; color: #333; }
+nav { background: #2c3e50; padding: 0 20px; display: flex; align-items: center; height: 56px; }
+nav a { color: #ecf0f1; text-decoration: none; padding: 8px 16px; border-radius: 4px; font-size: 14px; }
+nav a:hover { background: #34495e; }
+nav a.active { background: #e67e22; }
+nav .brand { color: #fff; font-size: 18px; font-weight: 600; margin-right: 24px; }
+.container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 20px; margin-bottom: 16px; }
+.card h2 { font-size: 16px; color: #2c3e50; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { background: #e67e22; color: #fff; padding: 10px 12px; text-align: left; }
+td { padding: 8px 12px; border-bottom: 1px solid #eee; }
+tr:hover td { background: #fef5e7; }
+.btn { padding: 8px 16px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
+.btn-primary { background: #e67e22; color: #fff; }
+.btn-primary:hover { background: #d35400; }
+.btn-outline { background: #fff; color: #e67e22; border: 1px solid #e67e22; }
+.btn-success { background: #27ae60; color: #fff; }
+.btn-danger { background: #e74c3c; color: #fff; }
+.actions { display: flex; gap: 8px; margin-bottom: 16px; }
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+.tab { padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px 4px 0 0; cursor: pointer; font-size: 13px; }
+.tab.active { background: #e67e22; color: #fff; border-color: #e67e22; }
+.form-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100; }
+.form-overlay.active { display: flex; align-items: center; justify-content: center; }
+.form-panel { background: #fff; padding: 24px; border-radius: 8px; width: 400px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+.form-panel h3 { margin-bottom: 16px; color: #2c3e50; }
+.form-group { margin-bottom: 12px; }
+.form-group label { display: block; font-size: 13px; color: #7f8c8d; margin-bottom: 4px; }
+.form-group input, .form-group select { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+.pagination { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; }
+.pagination a { padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; text-decoration: none; color: #333; }
+.pagination a.active { background: #e67e22; color: #fff; border-color: #e67e22; }
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+.stat-box { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 16px; text-align: center; }
+.stat-box .label { font-size: 12px; color: #7f8c8d; margin-bottom: 4px; }
+.stat-box .value { font-size: 24px; font-weight: 700; color: #2c3e50; }
+.status-badge { padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+.status-active { background: #27ae60; color: #fff; }
+.status-pending { background: #f39c12; color: #fff; }
+.status-rejected { background: #e74c3c; color: #fff; }
+.status-approved { background: #27ae60; color: #fff; }
+</style>
+</head>
+<body>
+<nav>
+  <span class="brand">Admin Panel</span>
+  <a href="/">系统管理</a>
+  <a href="/login">管理员登录</a>
+  <a href="/reports">运营报告</a>
+  <a href="/hr" class="active">人事管理</a>
+</nav>
+<div class="container">
+  <div class="tabs">
+    <div class="tab active" data-tab="employees" onclick="switchTab(this)">员工管理</div>
+    <div class="tab" data-tab="attendance" onclick="switchTab(this)">考勤记录</div>
+    <div class="tab" data-tab="departments" onclick="switchTab(this)">部门概览</div>
+    <div class="tab" data-tab="leave" onclick="switchTab(this)">请假管理</div>
+  </div>
+
+  <div id="tab-employees" class="tab-content">
+    <div class="actions">
+      <button class="btn btn-primary" onclick="showAddEmployeeForm()">添加员工</button>
+      <button class="btn btn-outline" onclick="loadEmployees()">刷新列表</button>
+    </div>
+    <div class="card">
+      <h2>员工列表</h2>
+      <table id="employees-table">
+        <thead><tr><th>ID</th><th>姓名</th><th>部门</th><th>职位</th><th>性别</th><th>入职日期</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="pagination" id="employees-pagination"></div>
+    </div>
+  </div>
+
+  <div id="tab-attendance" class="tab-content" style="display:none">
+    <div class="actions">
+      <button class="btn btn-primary" onclick="showAttendanceForm()">签到/签退</button>
+      <button class="btn btn-outline" onclick="exportAttendance()">导出考勤 CSV</button>
+      <button class="btn btn-outline" onclick="loadAttendance()">刷新</button>
+    </div>
+    <div class="card">
+      <h2>考勤记录</h2>
+      <table id="attendance-table">
+        <thead><tr><th>ID</th><th>日期</th><th>签到</th><th>签退</th><th>状态</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="pagination" id="attendance-pagination"></div>
+    </div>
+  </div>
+
+  <div id="tab-departments" class="tab-content" style="display:none">
+    <div class="stat-grid" id="dept-stats"></div>
+    <div class="card">
+      <h2>部门列表</h2>
+      <table id="departments-table">
+        <thead><tr><th>ID</th><th>部门名称</th><th>人数</th><th>薪资范围</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tab-leave" class="tab-content" style="display:none">
+    <div class="actions">
+      <button class="btn btn-primary" onclick="showLeaveForm()">申请请假</button>
+      <button class="btn btn-outline" onclick="loadLeave()">刷新</button>
+    </div>
+    <div class="card">
+      <h2>请假记录</h2>
+      <table id="leave-table">
+        <thead><tr><th>ID</th><th>类型</th><th>开始日期</th><th>结束日期</th><th>天数</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="pagination" id="leave-pagination"></div>
+    </div>
+  </div>
+
+  <div class="form-overlay" id="add-employee-overlay">
+    <div class="form-panel">
+      <h3>添加新员工</h3>
+      <div class="form-group"><label>姓名</label><input id="emp-name" maxlength="20"></div>
+      <div class="form-group"><label>部门</label>
+        <select id="emp-department">
+          <option value="技术部">技术部</option>
+          <option value="产品部">产品部</option>
+          <option value="运营部">运营部</option>
+          <option value="财务部">财务部</option>
+          <option value="市场部">市场部</option>
+          <option value="人事部">人事部</option>
+        </select>
+      </div>
+      <div class="form-group"><label>职位</label><input id="emp-position" maxlength="30"></div>
+      <div class="form-group"><label>性别</label>
+        <select id="emp-gender">
+          <option value="男">男</option>
+          <option value="女">女</option>
+        </select>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="addEmployee()">提交</button>
+        <button class="btn btn-outline" onclick="hideAddEmployeeForm()">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-overlay" id="attendance-overlay">
+    <div class="form-panel">
+      <h3>提交考勤</h3>
+      <div class="form-group"><label>日期</label><input type="date" id="att-date"></div>
+      <div class="form-group"><label>签到时间 (HH:MM)</label><input id="att-checkin" maxlength="5"></div>
+      <div class="form-group"><label>签退时间 (HH:MM)</label><input id="att-checkout" maxlength="5"></div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="submitAttendance()">提交</button>
+        <button class="btn btn-outline" onclick="hideAttendanceForm()">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-overlay" id="leave-overlay">
+    <div class="form-panel">
+      <h3>申请请假</h3>
+      <div class="form-group"><label>请假类型</label>
+        <select id="leave-type">
+          <option value="年假">年假</option>
+          <option value="病假">病假</option>
+          <option value="事假">事假</option>
+          <option value="婚假">婚假</option>
+          <option value="产假">产假</option>
+        </select>
+      </div>
+      <div class="form-group"><label>开始日期</label><input type="date" id="leave-start"></div>
+      <div class="form-group"><label>结束日期</label><input type="date" id="leave-end"></div>
+      <div class="form-group"><label>请假原因</label><input id="leave-reason" maxlength="100"></div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="applyLeave()">提交</button>
+        <button class="btn btn-outline" onclick="hideLeaveForm()">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // M-002: HTML escaping helper — defense-in-depth for all dynamic content
+  function esc(str) {
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  // Safe table row builder — uses textContent, never innerHTML concatenation
+  function buildTableRow(cells) {
+    var tr = document.createElement('tr');
+    cells.forEach(function(c) {
+      var td = document.createElement('td');
+      td.textContent = c;
+      tr.appendChild(td);
+    });
+    return tr;
+  }
+
+  function buildTableRowWithAction(cells, actionHtml) {
+    var tr = document.createElement('tr');
+    cells.forEach(function(c) {
+      var td = document.createElement('td');
+      td.textContent = c;
+      tr.appendChild(td);
+    });
+    // For action buttons, we must use innerHTML since buttons need onclick.
+    // The actionHtml contains only safe static IDs from the server (integers).
+    var actionTd = document.createElement('td');
+    actionTd.innerHTML = actionHtml;
+    tr.appendChild(actionTd);
+    return tr;
+  }
+
+  function buildStatBox(label, value) {
+    var box = document.createElement('div');
+    box.className = 'stat-box';
+    var lbl = document.createElement('div');
+    lbl.className = 'label';
+    lbl.textContent = label;
+    var val = document.createElement('div');
+    val.className = 'value';
+    val.textContent = value;
+    box.appendChild(lbl);
+    box.appendChild(val);
+    return box;
+  }
+
+  function clearTbody(tableId) {
+    var tbody = document.getElementById(tableId).querySelector('tbody');
+    while (tbody.firstChild) { tbody.removeChild(tbody.firstChild); }
+    return tbody;
+  }
+
+  function createStatusBadge(status) {
+    var span = document.createElement('span');
+    span.className = 'status-badge status-' + esc(status);
+    span.textContent = status;
+    return span;
+  }
+
+  var token = localStorage.getItem('admin_token') || '';
+
+  function apiFetch(url, options) {
+    var headers = options && options.headers ? options.headers : {};
+    headers['Authorization'] = 'Bearer ' + token;
+    options = options || {};
+    options.headers = headers;
+    return fetch(url, options).then(function(r) {
+      if (r.status === 401 || r.status === 403) {
+        alert('请先登录');
+        window.location.href = '/login';
+        return Promise.reject(r);
+      }
+      return r.json();
+    });
+  }
+
+  window.switchTab = function(el) {
+    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+    el.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(function(c) { c.style.display = 'none'; });
+    var tabId = 'tab-' + el.getAttribute('data-tab');
+    document.getElementById(tabId).style.display = 'block';
+  };
+
+  // Employees — safe DOM construction
+  window.loadEmployees = function() {
+    apiFetch('/hr/api/employees?page=1&page_size=10').then(function(data) {
+      if (data && data.items) {
+        var tbody = clearTbody('employees-table');
+        data.items.forEach(function(e) {
+          var tr = document.createElement('tr');
+          [e.id, e.name, e.department, e.position, e.gender, e.hire_date].forEach(function(c) {
+            var td = document.createElement('td');
+            td.textContent = c;
+            tr.appendChild(td);
+          });
+          // Status badge cell
+          var statusTd = document.createElement('td');
+          statusTd.appendChild(createStatusBadge(e.status));
+          tr.appendChild(statusTd);
+          // View button cell — e.id is integer, safe for onclick
+          var actionTd = document.createElement('td');
+          actionTd.innerHTML = '<button class="btn btn-outline" onclick="viewEmployee(' + esc(String(e.id)) + ')">查看</button>';
+          tr.appendChild(actionTd);
+          tbody.appendChild(tr);
+        });
+      }
+    }).catch(function() {});
+  };
+
+  window.viewEmployee = function(id) {
+    apiFetch('/hr/api/employees/' + id).then(function(data) {
+      if (data) {
+        alert('员工详情:\n姓名: ' + data.name + '\n部门: ' + data.department + '\n职位: ' + data.position + '\n状态: ' + data.status);
+      }
+    }).catch(function() {});
+  };
+
+  window.showAddEmployeeForm = function() {
+    document.getElementById('add-employee-overlay').classList.add('active');
+  };
+  window.hideAddEmployeeForm = function() {
+    document.getElementById('add-employee-overlay').classList.remove('active');
+  };
+  window.addEmployee = function() {
+    var name = document.getElementById('emp-name').value;
+    var dept = document.getElementById('emp-department').value;
+    var pos = document.getElementById('emp-position').value;
+    var gender = document.getElementById('emp-gender').value;
+    apiFetch('/hr/api/employees', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, department: dept, position: pos, gender: gender })
+    }).then(function(data) {
+      if (data && data.id) {
+        alert('添加成功');
+        hideAddEmployeeForm();
+        loadEmployees();
+      } else if (data && data.error) {
+        alert('添加失败: ' + data.error);
+      }
+    }).catch(function() {});
+  };
+
+  // Attendance — safe DOM construction
+  window.loadAttendance = function() {
+    apiFetch('/hr/api/attendance?page=1&page_size=10').then(function(data) {
+      if (data && data.items) {
+        var tbody = clearTbody('attendance-table');
+        data.items.forEach(function(a) {
+          var tr = document.createElement('tr');
+          [a.id, a.date, a.check_in || '-', a.check_out || '-'].forEach(function(c) {
+            var td = document.createElement('td');
+            td.textContent = c;
+            tr.appendChild(td);
+          });
+          var statusTd = document.createElement('td');
+          statusTd.appendChild(createStatusBadge(a.status));
+          tr.appendChild(statusTd);
+          tbody.appendChild(tr);
+        });
+      }
+    }).catch(function() {});
+  };
+
+  window.showAttendanceForm = function() {
+    document.getElementById('attendance-overlay').classList.add('active');
+  };
+  window.hideAttendanceForm = function() {
+    document.getElementById('attendance-overlay').classList.remove('active');
+  };
+  window.submitAttendance = function() {
+    var date = document.getElementById('att-date').value;
+    var ci = document.getElementById('att-checkin').value;
+    var co = document.getElementById('att-checkout').value;
+    apiFetch('/hr/api/attendance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: date, check_in: ci, check_out: co })
+    }).then(function(data) {
+      if (data && data.id) {
+        alert('提交成功');
+        hideAttendanceForm();
+        loadAttendance();
+      } else if (data && data.error) {
+        alert('提交失败: ' + data.error);
+      }
+    }).catch(function() {});
+  };
+
+  window.exportAttendance = function() {
+    window.location.href = '/hr/api/attendance/export';
+  };
+
+  // Departments — safe DOM construction
+  apiFetch('/hr/api/departments').then(function(data) {
+    if (data && data.items) {
+      var tbody = clearTbody('departments-table');
+      data.items.forEach(function(d) {
+        tbody.appendChild(buildTableRow([d.id, d.name, d.head_count, d.avg_salary_range]));
+      });
+      var statsContainer = document.getElementById('dept-stats');
+      while (statsContainer.firstChild) { statsContainer.removeChild(statsContainer.firstChild); }
+      data.items.forEach(function(d) {
+        statsContainer.appendChild(buildStatBox(d.name, d.head_count));
+      });
+    }
+  }).catch(function() {});
+
+  // Leave — safe DOM construction
+  window.loadLeave = function() {
+    apiFetch('/hr/api/leave?page=1&page_size=10').then(function(data) {
+      if (data && data.items) {
+        var tbody = clearTbody('leave-table');
+        data.items.forEach(function(l) {
+          var tr = document.createElement('tr');
+          [l.id, l.type, l.start_date, l.end_date, l.days].forEach(function(c) {
+            var td = document.createElement('td');
+            td.textContent = c;
+            tr.appendChild(td);
+          });
+          // Status badge
+          var statusTd = document.createElement('td');
+          statusTd.appendChild(createStatusBadge(l.status));
+          tr.appendChild(statusTd);
+          // Action buttons — l.id is integer, safe for onclick
+          var actionTd = document.createElement('td');
+          if (l.status === 'pending') {
+            actionTd.innerHTML = '<button class="btn btn-success" onclick="approveLeave(' + esc(String(l.id)) + ', \'approve\')">批准</button> <button class="btn btn-danger" onclick="approveLeave(' + esc(String(l.id)) + ', \'reject\')">拒绝</button>';
+          }
+          tr.appendChild(actionTd);
+          tbody.appendChild(tr);
+        });
+      }
+    }).catch(function() {});
+  };
+
+  window.approveLeave = function(id, action) {
+    apiFetch('/hr/api/leave/' + id + '/approve', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: action })
+    }).then(function(data) {
+      if (data && data.status) {
+        alert('操作成功: ' + data.status);
+        loadLeave();
+      } else if (data && data.error) {
+        alert('操作失败: ' + data.error);
+      }
+    }).catch(function() {});
+  };
+
+  window.showLeaveForm = function() {
+    document.getElementById('leave-overlay').classList.add('active');
+  };
+  window.hideLeaveForm = function() {
+    document.getElementById('leave-overlay').classList.remove('active');
+  };
+  window.applyLeave = function() {
+    var type = document.getElementById('leave-type').value;
+    var start = document.getElementById('leave-start').value;
+    var end = document.getElementById('leave-end').value;
+    var reason = document.getElementById('leave-reason').value;
+    apiFetch('/hr/api/leave', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: type, start_date: start, end_date: end, reason: reason })
+    }).then(function(data) {
+      if (data && data.id) {
+        alert('申请成功');
+        hideLeaveForm();
+        loadLeave();
+      } else if (data && data.error) {
+        alert('申请失败: ' + data.error);
+      }
+    }).catch(function() {});
+  };
+
+  // Initial loads
+  loadEmployees();
+  loadAttendance();
+  loadLeave();
+})();
+</script>
+</body>
+</html>

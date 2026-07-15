@@ -13,12 +13,12 @@
           "ruleId": "ME1",
           "level": "error",
           "message": {"text": "Internal API accessible from external network"},
-          "locations": [{"physicalLocation": {"uri": "http://api.target.com/internal/users"}}],
+          "locations": [{"physicalLocation": {"uri": "http://api.target.bench/internal/users"}}],
           "properties": {
             "category": "access_control",
             "severity": "critical",
             "evidence": {
-              "request_url": "http://api.target.com/internal/users",
+              "request_url": "http://api.target.bench/internal/users",
               "response_status": 200,
               "response_body_snippet": "{\"users\":[{\"id\":1}]}",
               "request_method": "GET"
@@ -29,12 +29,12 @@
           "ruleId": "ME2",
           "level": "error",
           "message": {"text": "Admin API accessible without auth"},
-          "locations": [{"physicalLocation": {"uri": "http://api.target.com/admin/config"}}],
+          "locations": [{"physicalLocation": {"uri": "http://api.target.bench/admin/config"}}],
           "properties": {
             "category": "access_control",
             "severity": "critical",
             "evidence": {
-              "request_url": "http://api.target.com/admin/config",
+              "request_url": "http://api.target.bench/admin/config",
               "response_status": 200,
               "response_body_snippet": "{\"db_host\":\"internal\"}",
               "request_method": "GET"
@@ -45,12 +45,12 @@
           "ruleId": "ME4",
           "level": "error",
           "message": {"text": "Sysadmin panel accessible via shop gateway"},
-          "locations": [{"physicalLocation": {"uri": "http://shop.target.com/sysadmin"}}],
+          "locations": [{"physicalLocation": {"uri": "http://shop.target.bench/sysadmin"}}],
           "properties": {
             "category": "access_control",
             "severity": "critical",
             "evidence": {
-              "request_url": "http://shop.target.com/sysadmin",
+              "request_url": "http://shop.target.bench/sysadmin",
               "response_status": 200,
               "response_body_snippet": "sysadmin dashboard",
               "request_method": "GET"
@@ -61,12 +61,12 @@
           "ruleId": "I1",
           "level": "warning",
           "message": {"text": "Database backup accessible"},
-          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/backup"}}],
+          "locations": [{"physicalLocation": {"uri": "http://api.target.bench/api/backup"}}],
           "properties": {
             "category": "info_leak",
             "severity": "high",
             "evidence": {
-              "request_url": "http://api.target.com/api/backup",
+              "request_url": "http://api.target.bench/api/backup",
               "response_status": 200,
               "response_body_snippet": "SQLite format 3",
               "request_method": "GET"
@@ -77,12 +77,12 @@
           "ruleId": "I2",
           "level": "warning",
           "message": {"text": "Environment config exposed"},
-          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/env"}}],
+          "locations": [{"physicalLocation": {"uri": "http://api.target.bench/api/env"}}],
           "properties": {
             "category": "info_leak",
             "severity": "high",
             "evidence": {
-              "request_url": "http://api.target.com/api/env",
+              "request_url": "http://api.target.bench/api/env",
               "response_status": 200,
               "response_body_snippet": "{\"NODE_ENV\":\"development\"}",
               "request_method": "GET"
@@ -93,12 +93,12 @@
           "ruleId": "I3",
           "level": "warning",
           "message": {"text": "Application config exposed"},
-          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/config"}}],
+          "locations": [{"physicalLocation": {"uri": "http://api.target.bench/api/config"}}],
           "properties": {
             "category": "info_leak",
             "severity": "high",
             "evidence": {
-              "request_url": "http://api.target.com/api/config",
+              "request_url": "http://api.target.bench/api/config",
               "response_status": 200,
               "response_body_snippet": "{\"secret\":\"***\"}",
               "request_method": "GET"
@@ -109,12 +109,12 @@
           "ruleId": "M1",
           "level": "error",
           "message": {"text": "JWT none algorithm accepted"},
-          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/auth"}}],
+          "locations": [{"physicalLocation": {"uri": "http://api.target.bench/api/auth"}}],
           "properties": {
             "category": "jwt_none",
             "severity": "high",
             "evidence": {
-              "request_url": "http://api.target.com/api/auth",
+              "request_url": "http://api.target.bench/api/auth",
               "response_status": 200,
               "response_body_snippet": "eyJhbGciOiJub25lIn0",
               "request_method": "POST"
@@ -125,12 +125,12 @@
           "ruleId": "M4",
           "level": "error",
           "message": {"text": "NoSQL injection via $ne operator"},
-          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/login"}}],
+          "locations": [{"physicalLocation": {"uri": "http://api.target.bench/api/login"}}],
           "properties": {
             "category": "nosqli_ne",
             "severity": "high",
             "evidence": {
-              "request_url": "http://api.target.com/api/login",
+              "request_url": "http://api.target.bench/api/login",
               "response_status": 200,
               "response_body_snippet": "login bypassed",
               "request_method": "POST"
@@ -141,12 +141,12 @@
           "ruleId": "M6",
           "level": "error",
           "message": {"text": "Prototype pollution via __proto__"},
-          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/user"}}],
+          "locations": [{"physicalLocation": {"uri": "http://api.target.bench/api/user"}}],
           "properties": {
             "category": "prototype_pollution",
             "severity": "high",
             "evidence": {
-              "request_url": "http://api.target.com/api/user",
+              "request_url": "http://api.target.bench/api/user",
               "response_status": 200,
               "response_body_snippet": "polluted",
               "request_method": "POST"
@@ -157,12 +157,12 @@
           "ruleId": "M7",
           "level": "error",
           "message": {"text": "Mass assignment vulnerability"},
-          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/user/update"}}],
+          "locations": [{"physicalLocation": {"uri": "http://api.target.bench/api/user/update"}}],
           "properties": {
             "category": "mass_assignment",
             "severity": "high",
             "evidence": {
-              "request_url": "http://api.target.com/api/user/update",
+              "request_url": "http://api.target.bench/api/user/update",
               "response_status": 200,
               "response_body_snippet": "role changed to admin",
               "request_method": "PUT"
@@ -173,12 +173,12 @@
           "ruleId": "M9",
           "level": "error",
           "message": {"text": "CORS wildcard misconfiguration"},
-          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/data"}}],
+          "locations": [{"physicalLocation": {"uri": "http://api.target.bench/api/data"}}],
           "properties": {
             "category": "cors_wildcard",
             "severity": "high",
             "evidence": {
-              "request_url": "http://api.target.com/api/data",
+              "request_url": "http://api.target.bench/api/data",
               "response_status": 200,
               "response_body_snippet": "Access-Control-Allow-Origin: *",
               "request_method": "GET"
@@ -189,12 +189,12 @@
           "ruleId": "M10",
           "level": "error",
           "message": {"text": "SSRF via internal URL parameter"},
-          "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/fetch"}}],
+          "locations": [{"physicalLocation": {"uri": "http://api.target.bench/api/fetch"}}],
           "properties": {
             "category": "ssrf",
             "severity": "high",
             "evidence": {
-              "request_url": "http://api.target.com/api/fetch?url=http://172.20.0.20",
+              "request_url": "http://api.target.bench/api/fetch?url=http://172.20.0.20",
               "response_status": 200,
               "response_body_snippet": "internal service response",
               "request_method": "GET"
@@ -205,12 +205,12 @@
           "ruleId": "B1",
           "level": "error",
           "message": {"text": "User profile exposes PII"},
-          "locations": [{"physicalLocation": {"uri": "http://shop.target.com/user-profile"}}],
+          "locations": [{"physicalLocation": {"uri": "http://shop.target.bench/user-profile"}}],
           "properties": {
             "category": "mass_assignment",
             "severity": "critical",
             "evidence": {
-              "request_url": "http://shop.target.com/user-profile",
+              "request_url": "http://shop.target.bench/user-profile",
               "response_status": 200,
               "response_body_snippet": "PII exposed",
               "request_method": "GET"
@@ -221,12 +221,12 @@
           "ruleId": "B2",
           "level": "error",
           "message": {"text": "Sysadmin panel accessible via BFF"},
-          "locations": [{"physicalLocation": {"uri": "http://shop.target.com/sysadmin"}}],
+          "locations": [{"physicalLocation": {"uri": "http://shop.target.bench/sysadmin"}}],
           "properties": {
             "category": "access_control",
             "severity": "critical",
             "evidence": {
-              "request_url": "http://shop.target.com/sysadmin",
+              "request_url": "http://shop.target.bench/sysadmin",
               "response_status": 200,
               "response_body_snippet": "admin panel",
               "request_method": "GET"
