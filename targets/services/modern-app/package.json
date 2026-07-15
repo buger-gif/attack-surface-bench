@@ -13,6 +13,7 @@
     "mongodb": "^6.0.0",
     "axios": "^1.6.0",
     "express-graphql": "^0.12.0",
-    "graphql": "^16.8.0"
+    "graphql": "^16.8.0",
+    "isomorphic-dompurify": "^2.12.0"
   }
 }

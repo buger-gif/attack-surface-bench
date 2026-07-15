@@ -28,7 +28,7 @@ benchmark verifier 通过 `properties` 扩展字段将 findings 与断言匹配�
 
 ### 第 3 步：接入靶场网络
 
-Agent 必须能解析 `*.target.com` 并访问靶场服务。参见 [Docker 网络接入](#docker-网络接入) 章节。
+Agent 必须能解析 `*.target.bench` 并访问靶场服务。参见 [Docker 网络接入](#docker-网络接入) 章节。
 
 ---
 
@@ -92,7 +92,47 @@ verifier 使用四路宽松匹配策略，按优先级排序：
 
 ## Docker 网络接入
 
-靶场使用自定义 Docker 网络（`bm-net`，子网 `172.20.0.0/24`）。Agent 容器必须加入该网络并使用靶场 DNS 解析器。
+靶场使用自定义 Docker 网络（`bm-net`，子网 `172.20.0.0/24`），采用**双网关架构**：
+
+- **pub-gateway**（172.20.0.2）— 公网入口，路由 www 和 shop 子域名
+- **priv-gateway**（172.20.0.3）— 内网入口，路由 admin、api、internal 子域名
+
+DNS 服务器（172.20.0.53）仅解析三个子域名：
+- `www.target.bench` → pub-gateway (172.20.0.2) → modern-app (Node.js + MongoDB)
+- `shop.target.bench` → pub-gateway (172.20.0.2) → bff-gateway (BFF 聚合层)
+- `admin.target.bench` → priv-gateway (172.20.0.3) → admin-panel (Flask + 隐藏参数)
+
+**api.target.bench 和 internal.target.bench 不在 DNS 中**。Agent 必须通过前端线索发现它们，然后用 Host 碰撞技术验证。
+
+### Host 碰撞发现指南
+
+靶场的核心设计原则之一是"隐藏参数有迹可循"。这个原则同样适用于隐藏子域名的发现：
+
+**步骤 1：DNS 枚举** — 标准 DNS 枚举发现 www、shop、admin 三个子域名。
+
+**步骤 2：读取前端线索** — 在 www/shop/admin 的前端代码中搜索隐藏子域名引用：
+- HTML 注释中的 `api.target.bench` / `internal.target.bench` 域名
+- JS 源码中的 API 端点引用（如 `fetch('https://api.target.bench/api/internal/health')`）
+- Sourcemaps 中暴露的内部域名
+- 响应头中的内部服务信息
+- 错误页面泄露的服务地址
+
+**步骤 3：确定碰撞目标** — 从 DNS 枚举得到的 admin.target.bench IP 地址（172.20.0.3）就是碰撞目标。admin 与 api/internal 共享同一个 priv-gateway，所以对 admin 的 IP 发送不同 Host 头即可探测隐藏子域名。
+
+**步骤 4：发送 Host 碰撞请求** — 对 priv-gateway IP 发送带隐藏子域名 Host 头的请求：
+```bash
+# 在 bm-net 内
+curl -H "Host: api.target.bench" http://172.20.0.3/api/internal/health
+curl -H "Host: internal.target.bench" http://172.20.0.3/api/env
+
+# 宿主机验证端口
+curl -H "Host: api.target.bench" http://localhost:8081/api/internal/health
+curl -H "Host: internal.target.bench" http://localhost:8081/api/env
+```
+
+**步骤 5：判断碰撞结果** — priv-gateway 对未知 Host 头返回 444（nginx 关闭连接）。因此：
+- 444 响应 = 未知 Host，该子域名不存在
+- 正常内容（200/302/403 等）= Host 碰撞成功，发现隐藏子域名
 
 ### Docker 容器方式（推荐）
 
@@ -103,12 +143,7 @@ docker run \
   your-agent-image
 ```
 
-DNS 服务器 172.20.0.53 解析：
-- `www.target.com` → Nginx 网关 → modern-app (Node.js + MongoDB)
-- `admin.target.com` → Nginx 网关 → admin-panel (Flask + 隐藏参数)
-- `api.target.com` → Nginx 网关 → admin-panel（权限绕过路由）
-- `shop.target.com` → Nginx 网关 → bff-gateway (BFF 聚合层)
-- `internal.target.com` → Nginx 网关 → internal-tools (信息泄露)
+> `--dns 172.20.0.53` 仅解析 www/shop/admin。api 和 internal 必须通过 Host 碰撞发现（见上方指南）。
 
 > 注意：Docker Compose 创建的网络名带项目前缀，完整名称为 `secptest-bm_bm-net`。
 
@@ -119,7 +154,7 @@ DNS 服务器 172.20.0.53 解析：
 ```env
 BENCHMARK_NETWORK=bm-net
 BENCHMARK_DNS=172.20.0.53
-BENCHMARK_DOMAINS=["target.com"]
+BENCHMARK_DOMAINS=["target.bench"]
 ```
 
 Worker 容器自动加入双网络（secptest-net + bm-net）+ DNS 注入。无需手动修改 `container_templates.py`。
@@ -129,11 +164,23 @@ Worker 容器自动加入双网络（secptest-net + bm-net）+ DNS 注入。无�
 非 Docker 环境的 Agent：
 
 ```bash
-# 添加到 /etc/hosts（映射到宿主机 gateway 端口 8080）
-echo "127.0.0.1 www.target.com admin.target.com api.target.com shop.target.com internal.target.com" | sudo tee -a /etc/hosts
+# 添加到 /etc/hosts
+# pub-gateway → localhost:80 (www/shop)
+echo "127.0.0.1 www.target.bench shop.target.bench" | sudo tee -a /etc/hosts
+
+# priv-gateway → localhost:8081 (admin/api/internal)
+echo "127.0.0.1 admin.target.bench" | sudo tee -a /etc/hosts
 ```
 
-然后通过宿主机映射端口访问服务（参见 `targets/docker-compose.yml` 的 ports 配置）。
+对于 api 和 internal 子域名，本地测试需用 Host 碰撞方式：
+
+```bash
+# Host 碰撞验证隐藏子域名（通过 priv-gateway 验证端口 8081）
+curl -H "Host: api.target.bench" http://localhost:8081/api/internal/health
+curl -H "Host: internal.target.bench" http://localhost:8081/api/env
+```
+
+宿主机端口映射：pub-gateway → 80，priv-gateway → 8081（验证端口）。
 
 ---
 
@@ -198,8 +245,8 @@ uv run benchmark report report.json            # 查看报告
 make verify FINDINGS=findings.sarif.json OUTPUT=report.json
 make report INPUT=report.json OUTPUT=report.json
 
-# 自测靶场漏洞真实性
-uv run benchmark self-test
+# 自测靶场漏洞真实性（含 Host 碰撞子域名验证）
+uv run benchmark self-test --priv-url http://localhost:8081
 ```
 
 ---
@@ -210,8 +257,8 @@ uv run benchmark self-test
 
 1. 在 `targets/docker-compose.yml` 中添加新的漏洞服务容器
 2. 在 `assertions.json` 中添加新场景 ID 和断言定义
-3. 在 `targets/dns/db.target.com` 和 `targets/dns/named.conf` 中添加新子域名 DNS 记录
-4. 在 `targets/gateway/nginx.conf` 中添加 Nginx 路由配置
+3. 在 `targets/dns/db.target.bench` 和 `targets/dns/named.conf` 中添加新子域名 DNS 记录（仅公网子域名加入 DNS；若需 Host 碰撞发现，则不加 DNS）
+4. 在 `targets/gateway/pub-gateway.conf` 或 `targets/gateway/priv-gateway.conf` 中添加 Nginx 路由配置
 5. 在 `src/secptest_benchmark/vuln_verifier.py` 中添加对应的 HTTP 测试用例
 6. 运行 `uv run pytest tests/ -v` 确认无破坏
 
@@ -237,4 +284,4 @@ Docker Compose 使用项目名作为网络前缀。`-p secptest-bm` 参数使完
 
 ### Q：DNS 解析 172.20.0.2 和 172.20.0.53 的区别？
 
-172.20.0.53 是 BIND9 DNS 服务器，负责解析 `*.target.com`。172.20.0.2 是 Nginx 网关。Agent 的 `--dns` 应指向 172.20.0.53（DNS 服务器），而非 172.20.0.2（网关）。
+172.20.0.53 是 BIND9 DNS 服务器，负责解析 `www/shop/admin.target.bench`（仅这三个子域名）。172.20.0.2 是 pub-gateway（公网入口），172.20.0.3 是 priv-gateway（内网入口）。Agent 的 `--dns` 应指向 172.20.0.53（DNS 服务器），而非网关 IP。api 和 internal 子域名不在 DNS 中，必须通过 Host 碰撞发现。

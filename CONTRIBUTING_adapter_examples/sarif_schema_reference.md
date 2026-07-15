@@ -61,7 +61,7 @@ Each finding matches at most one assertion. Each assertion is matched at most on
           "locations": [
             {
               "physicalLocation": {
-                "uri": "http://api.target.com/internal/users"
+                "uri": "http://api.target.bench/internal/users"
               }
             }
           ],
@@ -69,12 +69,12 @@ Each finding matches at most one assertion. Each assertion is matched at most on
             "category": "access_control",
             "severity": "critical",
             "evidence": {
-              "request_url": "http://api.target.com/internal/users",
+              "request_url": "http://api.target.bench/internal/users",
               "response_status": 200,
               "response_body_snippet": "{\"users\":[{\"id\":1,\"name\":\"admin\",\"role\":\"superuser\"}]}",
               "request_method": "GET"
             },
-            "detection_trace": "Discovered through directory brute-force on api.target.com after initial reconnaissance of /api/ endpoint"
+            "detection_trace": "Discovered through directory brute-force on api.target.bench after initial reconnaissance of /api/ endpoint"
           }
         },
         {
@@ -86,7 +86,7 @@ Each finding matches at most one assertion. Each assertion is matched at most on
           "locations": [
             {
               "physicalLocation": {
-                "uri": "http://api.target.com/api/login"
+                "uri": "http://api.target.bench/api/login"
               }
             }
           ],
@@ -94,7 +94,7 @@ Each finding matches at most one assertion. Each assertion is matched at most on
             "category": "nosqli_ne",
             "severity": "high",
             "evidence": {
-              "request_url": "http://api.target.com/api/login",
+              "request_url": "http://api.target.bench/api/login",
               "response_status": 200,
               "response_body_snippet": "{\"success\":true,\"token\":\"eyJhbGciOiJub25lIn0...\"}",
               "request_method": "POST"
@@ -111,7 +111,7 @@ Each finding matches at most one assertion. Each assertion is matched at most on
           "locations": [
             {
               "physicalLocation": {
-                "uri": "http://api.target.com/api/backup"
+                "uri": "http://api.target.bench/api/backup"
               }
             }
           ],
@@ -119,7 +119,7 @@ Each finding matches at most one assertion. Each assertion is matched at most on
             "category": "info_leak",
             "severity": "high",
             "evidence": {
-              "request_url": "http://api.target.com/api/backup",
+              "request_url": "http://api.target.bench/api/backup",
               "response_status": 200,
               "response_body_snippet": "SQLite format 3\x00...",
               "request_method": "GET"
@@ -136,7 +136,7 @@ Each finding matches at most one assertion. Each assertion is matched at most on
           "locations": [
             {
               "physicalLocation": {
-                "uri": "http://shop.target.com/user-profile"
+                "uri": "http://shop.target.bench/user-profile"
               }
             }
           ],
@@ -144,9 +144,9 @@ Each finding matches at most one assertion. Each assertion is matched at most on
             "category": "mass_assignment",
             "severity": "critical",
             "evidence": {
-              "request_url": "http://shop.target.com/user-profile/1",
+              "request_url": "http://shop.target.bench/user-profile/1",
               "response_status": 200,
-              "response_body_snippet": "{\"id\":1,\"email\":\"admin@target.com\",\"ssn\":\"123-45-6789\"}",
+              "response_body_snippet": "{\"id\":1,\"email\":\"admin@target.bench\",\"ssn\":\"123-45-6789\"}",
               "request_method": "GET"
             }
           }

@@ -1,5 +1,6 @@
-# SECURITY-REVIEWED: 2026-07-09 | RULES: v2.6.0-draft
-# docker-compose.yml for benchmark target range (9 services on bm-net 172.20.0.0/24)
+# SECURITY-REVIEWED: 2026-07-15 | RULES: v2.6.0-draft
+# docker-compose.yml for benchmark target range (10 services on bm-net 172.20.0.0/24)
+# v5.0: Dual gateway — pub-gateway(.2) + priv-gateway(.3)
 
 version: '3.8'
 
@@ -8,26 +9,37 @@ services:
     image: internetsystemsconsortium/bind9:9.18
     volumes:
       - ./dns/named.conf:/etc/bind/named.conf:ro
-      - ./dns/db.target.com:/etc/bind/db.target.com:ro
+      - ./dns/db.target.bench:/etc/bind/db.target.bench:ro
     networks:
       bm-net:
         ipv4_address: 172.20.0.53
 
-  gateway:
+  pub-gateway:
     image: nginx:alpine
     volumes:
-      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./gateway/pub-gateway.conf:/etc/nginx/nginx.conf:ro
     ports:
-      - "8080:80"
+      - "80:80"
     networks:
       bm-net:
         ipv4_address: 172.20.0.2
-    depends_on: [www, admin, shop, internal]
+    depends_on: [www, admin, shop]
 
-  # ===== www.target.com — 现代漏洞基线 =====
+  priv-gateway:
+    image: nginx:alpine
+    volumes:
+      - ./gateway/priv-gateway.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8081:80"    # verification port for self-test only; unknown Host → 444
+    networks:
+      bm-net:
+        ipv4_address: 172.20.0.3
+    depends_on: [admin, internal]
+
+  # ===== www.target.bench — 现代漏洞基线 =====
   www:
     build: ./services/modern-app
-    hostname: www.target.com
+    hostname: www.target.bench
     environment:
       - MONGO_HOST=mongodb
       - MONGO_PORT=27017
@@ -39,12 +51,15 @@ services:
         ipv4_address: 172.20.0.10
     depends_on: [mongodb]
 
-  # ===== admin.target.com — 隐藏参数后门核心 =====
+  # ===== admin.target.bench — 隐藏参数后门核心 =====
   admin:
     build: ./services/admin-panel
-    hostname: admin.target.com
+    hostname: admin.target.bench
     environment:
       - DB_HOST=db
+      - DB_USER=appuser
+      - DB_PASSWORD=apppass123
+      - DB_NAME=app_db
       - JWT_SECRET=dev-secret-change-me
       - ADMIN_PASSWORD=admin123
       - DEBUG=True
@@ -53,14 +68,14 @@ services:
         ipv4_address: 172.20.0.11
     depends_on: [db]
 
-  # ===== api.target.com — 同服务多入口（指向admin-panel内部路由） =====
-  # 注意：api.target.com 不是独立服务，由gateway路由到admin-panel
-  # 详见 gateway/nginx.conf
+  # ===== api.target.bench — 同服务多入口（指向admin-panel内部路由） =====
+  # 注意：api.target.bench 不是独立服务，由 priv-gateway 路由到 admin-panel
+  # 详见 gateway/priv-gateway.conf — Host 碰撞发现
 
-  # ===== shop.target.com — BFF数据聚合 =====
+  # ===== shop.target.bench — BFF数据聚合 =====
   shop:
     build: ./services/bff-gateway
-    hostname: shop.target.com
+    hostname: shop.target.bench
     environment:
       - ADMIN_SERVICE_URL=http://172.20.0.11:5000
       - USER_SERVICE_URL=http://172.20.0.10:3000
@@ -69,10 +84,10 @@ services:
       bm-net:
         ipv4_address: 172.20.0.12
 
-  # ===== internal.target.com — 信息泄露 =====
+  # ===== internal.target.bench — 信息泄露 =====
   internal:
     build: ./services/internal-tools
-    hostname: internal.target.com
+    hostname: internal.target.bench
     environment:
       - DB_HOST=db
       - REDIS_HOST=redis

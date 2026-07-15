@@ -1,0 +1,268 @@
+<!-- SECURITY-REVIEWED: 2026-07-14 | RULES: v2.6.0-draft -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>部署管理 - Internal Tools</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1d1d1f; color: #f5f5f7; }
+    .header { background: #2d2d2f; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3d3d3f; }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .nav-links a { color: #2997ff; text-decoration: none; margin-left: 20px; font-size: 14px; }
+    .nav-links a:hover { color: #5ac8fa; }
+    .auth-bar { background: #2d2d2f; padding: 12px 24px; border-bottom: 1px solid #3d3d3f; }
+    .auth-bar label { font-size: 14px; margin-right: 8px; }
+    .auth-bar input { padding: 8px 12px; border: 1px solid #3d3d3f; border-radius: 6px; background: #3d3d3f; color: #f5f5f7; font-size: 14px; width: 300px; }
+    .auth-bar button { padding: 8px 16px; background: #2997ff; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; margin-left: 8px; }
+    .content { max-width: 980px; margin: 0 auto; padding: 24px; }
+    .section-title { font-size: 22px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid #3d3d3f; padding-bottom: 8px; }
+    .card { background: #2d2d2f; border-radius: 12px; padding: 20px; border: 1px solid #3d3d3f; margin-bottom: 20px; }
+    .status-bar { display: flex; gap: 24px; align-items: center; }
+    .status-label { font-size: 14px; color: #8e8e93; }
+    .status-value { font-size: 24px; font-weight: 700; }
+    .status-running { color: #34c759; }
+    .status-stopped { color: #ff3b30; }
+    .deploy-table { width: 100%; border-collapse: collapse; }
+    .deploy-table th { font-size: 13px; color: #8e8e93; padding: 8px; text-align: left; border-bottom: 1px solid #3d3d3f; }
+    .deploy-table td { font-size: 14px; padding: 8px; border-bottom: 1px solid #3d3d3f; }
+    .status-success { color: #34c759; }
+    .status-failed { color: #ff3b30; }
+    .version-list { list-style: none; }
+    .version-item { padding: 12px 0; border-bottom: 1px solid #3d3d3f; }
+    .version-item:last-child { border-bottom: none; }
+    .version-number { font-size: 18px; font-weight: 700; }
+    .version-date { font-size: 13px; color: #8e8e93; }
+    .version-changelog { font-size: 14px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { font-size: 14px; font-weight: 500; display: block; margin-bottom: 6px; }
+    .form-group input, .form-group select { width: 100%; padding: 10px 14px; border: 1px solid #3d3d3f; border-radius: 8px; background: #3d3d3f; color: #f5f5f7; font-size: 14px; }
+    .form-group select option { background: #2d2d2f; color: #f5f5f7; }
+    .btn { padding: 10px 20px; background: #2997ff; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+    .btn:hover { background: #5ac8fa; }
+    .btn-danger { background: #ff3b30; }
+    .btn-danger:hover { background: #ff6961; }
+    .log-line { padding: 4px 0; font-size: 13px; font-family: monospace; }
+    .log-info { color: #f5f5f7; }
+    .log-warn { color: #ff9500; }
+    .log-error { color: #ff3b30; }
+    .message { padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
+    .message.success { background: #1a3a1a; color: #34c759; }
+    .message.error { background: #3a1a1a; color: #ff3b30; }
+    #messageArea { display: none; }
+    .pagination { display: flex; gap: 8px; margin-top: 12px; }
+    .pagination button { padding: 6px 12px; border: 1px solid #3d3d3f; border-radius: 4px; background: #3d3d3f; color: #f5f5f7; cursor: pointer; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>部署管理</h1>
+    <div class="nav-links">
+      <a href="/api/monitor">监控面板</a>
+      <a href="/">首页</a>
+    </div>
+  </div>
+
+  <div class="auth-bar">
+    <label for="adminToken">Admin Token:</label>
+    <input type="text" id="adminToken" placeholder="admin_session_XXXXXX" pattern="admin_session_[a-zA-Z0-9]{8,32}">
+    <button type="button" id="authBtn">认证</button>
+  </div>
+
+  <div class="content">
+    <div id="messageArea"></div>
+
+    <!-- 当前部署状态 -->
+    <h2 class="section-title">当前部署状态</h2>
+    <div id="statusCard" class="card">
+      <div class="status-bar">
+        <div>
+          <span class="status-label">当前版本</span>
+          <span class="status-value" id="currentVersion">-</span>
+        </div>
+        <div>
+          <span class="status-label">运行状态</span>
+          <span class="status-value status-running" id="currentStatus">-</span>
+        </div>
+        <div>
+          <span class="status-label">最近部署时间</span>
+          <span class="status-value" id="lastDeployTime" style="font-size:16px;">-</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 部署历史 -->
+    <h2 class="section-title">部署历史</h2>
+    <div id="historyCard" class="card"></div>
+
+    <!-- 版本信息 -->
+    <h2 class="section-title">版本信息</h2>
+    <div id="versionsCard" class="card">
+      <ul id="versionList" class="version-list"></ul>
+    </div>
+
+    <!-- 回滚操作 -->
+    <h2 class="section-title">回滚操作</h2>
+    <div class="card">
+      <form id="rollbackForm">
+        <div class="form-group">
+          <label for="targetVersion">目标版本</label>
+          <select id="targetVersion" name="target_version" required>
+            <option value="2.8.0">v2.8.0</option>
+            <option value="2.7.8">v2.7.8</option>
+            <option value="2.7.7">v2.7.7</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="idempotencyKey">幂等键 (8-64位字母数字)</label>
+          <input type="text" id="idempotencyKey" name="idempotency_key" minlength="8" maxlength="64" pattern="[a-zA-Z0-9]{8,64}" placeholder="rollback20260714xyz789" required>
+        </div>
+        <button type="submit" class="btn btn-danger">执行回滚</button>
+      </form>
+    </div>
+
+    <!-- 部署日志 -->
+    <h2 class="section-title">部署日志</h2>
+    <div id="logsCard" class="card"></div>
+  </div>
+
+  <script>
+    // SECURITY-REVIEWED: 2026-07-14 | RULES: v2.6.0-draft
+    // No innerHTML or eval usage — all DOM updates use safe methods
+
+    var authToken = '';
+
+    function showMessage(text, type) {
+      var area = document.getElementById('messageArea');
+      area.style.display = 'block';
+      area.className = 'message ' + type;
+      area.textContent = text;
+    }
+
+    function createEl(tag, textContent) {
+      var el = document.createElement(tag);
+      if (textContent) { el.textContent = textContent; }
+      return el;
+    }
+
+    function authHeaders() {
+      return { 'Content-Type': 'application/json', '__admin_token': authToken };
+    }
+
+    // Auth button
+    document.getElementById('authBtn').addEventListener('click', function() {
+      authToken = document.getElementById('adminToken').value;
+      if (!authToken) { showMessage('请输入 Admin Token', 'error'); return; }
+      loadStatus();
+      loadHistory();
+      loadVersions();
+      loadLogs();
+    });
+
+    function loadStatus() {
+      fetch('/api/deploy/status', { headers: authHeaders() })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          if (data.error) { showMessage(data.error, 'error'); return; }
+          document.getElementById('currentVersion').textContent = data.current_version;
+          var statusEl = document.getElementById('currentStatus');
+          statusEl.textContent = data.status;
+          statusEl.className = data.status === 'running' ? 'status-value status-running' : 'status-value status-stopped';
+          document.getElementById('lastDeployTime').textContent = data.last_deploy_time;
+        })
+        .catch(function() { showMessage('加载状态失败', 'error'); });
+    }
+
+    function loadHistory() {
+      fetch('/api/deploy/history?page=1&size=10', { headers: authHeaders() })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          if (data.error) { showMessage(data.error, 'error'); return; }
+          var container = document.getElementById('historyCard');
+          var table = createEl('table');
+          table.className = 'deploy-table';
+          var headerRow = createEl('tr');
+          ['ID', '版本', '时间', '状态', '操作人'].forEach(function(h) {
+            headerRow.appendChild(createEl('th', h));
+          });
+          table.appendChild(headerRow);
+          data.deployments.forEach(function(d) {
+            var row = createEl('tr');
+            row.appendChild(createEl('td', d.id));
+            row.appendChild(createEl('td', d.version));
+            row.appendChild(createEl('td', d.timestamp));
+            var statusCell = createEl('td', d.status);
+            statusCell.className = 'status-' + d.status;
+            row.appendChild(statusCell);
+            row.appendChild(createEl('td', d.operator));
+            table.appendChild(row);
+          });
+          container.appendChild(table);
+        })
+        .catch(function() {});
+    }
+
+    function loadVersions() {
+      fetch('/api/deploy/versions', { headers: authHeaders() })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          if (data.error) { showMessage(data.error, 'error'); return; }
+          var list = document.getElementById('versionList');
+          data.versions.forEach(function(v) {
+            var item = createEl('li');
+            item.className = 'version-item';
+            var num = createEl('span', 'v' + v.version);
+            num.className = 'version-number';
+            var date = createEl('span', ' (' + v.release_date + ')');
+            date.className = 'version-date';
+            var changelog = createEl('div', v.changelog_summary);
+            changelog.className = 'version-changelog';
+            item.appendChild(num);
+            item.appendChild(date);
+            item.appendChild(changelog);
+            list.appendChild(item);
+          });
+        })
+        .catch(function() {});
+    }
+
+    function loadLogs() {
+      fetch('/api/deploy/logs?page=1&size=20', { headers: authHeaders() })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          if (data.error) { showMessage(data.error, 'error'); return; }
+          var container = document.getElementById('logsCard');
+          data.logs.forEach(function(l) {
+            var line = createEl('div');
+            line.className = 'log-line log-' + l.level.toLowerCase();
+            line.textContent = '[' + l.timestamp + '] [' + l.level + '] ' + l.message;
+            container.appendChild(line);
+          });
+        })
+        .catch(function() {});
+    }
+
+    // Rollback form
+    document.getElementById('rollbackForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var targetVer = document.getElementById('targetVersion').value;
+      var idemKey = document.getElementById('idempotencyKey').value;
+      fetch('/api/deploy/rollback', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({target_version: targetVer, idempotency_key: idemKey})
+      })
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        if (data.error) {
+          showMessage('回滚失败: ' + data.error, 'error');
+        } else {
+          showMessage('回滚成功! 目标版本: ' + data.target_version + ', 操作人: ' + data.operator, 'success');
+        }
+      })
+      .catch(function() { showMessage('回滚请求失败', 'error'); });
+    });
+  </script>
+</body>
+</html>

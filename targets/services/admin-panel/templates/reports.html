@@ -1,0 +1,492 @@
+<!-- SECURITY-REVIEWED: 2026-07-14 | RULES: v2.6.0-draft -->
+<!-- admin-panel/templates/reports.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>运营报告 - Admin Panel</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f6fa; color: #333; }
+nav { background: #2c3e50; padding: 0 20px; display: flex; align-items: center; height: 56px; }
+nav a { color: #ecf0f1; text-decoration: none; padding: 8px 16px; border-radius: 4px; font-size: 14px; }
+nav a:hover { background: #34495e; }
+nav a.active { background: #3498db; }
+nav .brand { color: #fff; font-size: 18px; font-weight: 600; margin-right: 24px; }
+.container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 20px; margin-bottom: 16px; }
+.card h2 { font-size: 16px; color: #2c3e50; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+.stat-box { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 16px; text-align: center; }
+.stat-box .label { font-size: 12px; color: #7f8c8d; margin-bottom: 4px; }
+.stat-box .value { font-size: 24px; font-weight: 700; color: #2c3e50; }
+.stat-box .change { font-size: 12px; color: #27ae60; margin-top: 4px; }
+.chart-area { height: 300px; background: #fafafa; border: 1px solid #eee; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #95a5a6; overflow: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { background: #3498db; color: #fff; padding: 10px 12px; text-align: left; }
+td { padding: 8px 12px; border-bottom: 1px solid #eee; }
+tr:hover td { background: #f0f8ff; }
+.actions { display: flex; gap: 8px; margin-bottom: 16px; }
+.btn { padding: 8px 16px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
+.btn-primary { background: #3498db; color: #fff; }
+.btn-primary:hover { background: #2980b9; }
+.btn-outline { background: #fff; color: #3498db; border: 1px solid #3498db; }
+.btn-danger { background: #e74c3c; color: #fff; }
+.pagination { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; }
+.pagination a { padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; text-decoration: none; color: #333; }
+.pagination a.active { background: #3498db; color: #fff; border-color: #3498db; }
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+.tab { padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px 4px 0 0; cursor: pointer; font-size: 13px; }
+.tab.active { background: #3498db; color: #fff; border-color: #3498db; }
+.filter-row { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.filter-row label { font-size: 13px; color: #7f8c8d; }
+.filter-row input, .filter-row select { padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+.schedule-form { display: none; background: #f8f9fa; border: 1px solid #ddd; padding: 16px; border-radius: 4px; margin-bottom: 16px; }
+.schedule-form.active { display: block; }
+</style>
+</head>
+<body>
+<nav>
+  <span class="brand">Admin Panel</span>
+  <a href="/">系统管理</a>
+  <a href="/login">管理员登录</a>
+  <a href="/reports" class="active">运营报告</a>
+  <a href="/hr">人事管理</a>
+</nav>
+<div class="container">
+  <div class="stat-grid">
+    <div class="stat-box">
+      <div class="label">总订单数</div>
+      <div class="value" id="stat-orders">-</div>
+      <div class="change">+12.5%</div>
+    </div>
+    <div class="stat-box">
+      <div class="label">平均客单价</div>
+      <div class="value" id="stat-avg">-</div>
+      <div class="change">+3.2%</div>
+    </div>
+    <div class="stat-box">
+      <div class="label">活跃用户</div>
+      <div class="value" id="stat-users">-</div>
+      <div class="change">+8.7%</div>
+    </div>
+    <div class="stat-box">
+      <div class="label">产品数</div>
+      <div class="value" id="stat-products">-</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="overview" onclick="switchTab(this)">概览</div>
+    <div class="tab" data-tab="sales" onclick="switchTab(this)">销售数据</div>
+    <div class="tab" data-tab="users" onclick="switchTab(this)">用户统计</div>
+    <div class="tab" data-tab="products" onclick="switchTab(this)">产品排名</div>
+    <div class="tab" data-tab="orders" onclick="switchTab(this)">订单分析</div>
+    <div class="tab" data-tab="schedules" onclick="switchTab(this)">定时报告</div>
+  </div>
+
+  <div id="tab-overview" class="tab-content">
+    <div class="card">
+      <h2>销售趋势图</h2>
+      <div class="chart-area" id="chart-sales"><span>加载中...</span></div>
+    </div>
+    <div class="card">
+      <h2>热门产品 TOP 5</h2>
+      <table id="top-products-table">
+        <thead><tr><th>产品名称</th><th>销量</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2>最新通知</h2>
+      <table id="notifications-table">
+        <thead><tr><th>标题</th><th>类型</th><th>状态</th><th>时间</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tab-sales" class="tab-content" style="display:none">
+    <div class="card">
+      <h2>销售数据明细</h2>
+      <div class="filter-row">
+        <label>开始日期:</label><input type="date" id="sales-start-date" value="2026-07-01">
+        <label>结束日期:</label><input type="date" id="sales-end-date" value="2026-07-14">
+        <button class="btn btn-primary" onclick="loadDailySales()">查询</button>
+        <button class="btn btn-outline" onclick="exportSales()">导出 CSV</button>
+      </div>
+      <table id="sales-table">
+        <thead><tr><th>日期</th><th>订单数</th><th>平均客单价</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="pagination" id="sales-pagination"></div>
+    </div>
+  </div>
+
+  <div id="tab-users" class="tab-content" style="display:none">
+    <div class="card">
+      <h2>活跃用户统计</h2>
+      <div id="active-users-stats"></div>
+    </div>
+    <div class="card">
+      <h2>地区分布</h2>
+      <table id="regions-table">
+        <thead><tr><th>地区</th><th>用户数</th><th>活跃率</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2>用户增长趋势</h2>
+      <div class="chart-area" id="chart-users"><span>加载中...</span></div>
+    </div>
+  </div>
+
+  <div id="tab-products" class="tab-content" style="display:none">
+    <div class="card">
+      <h2>产品排名</h2>
+      <table id="products-table">
+        <thead><tr><th>ID</th><th>名称</th><th>类别</th><th>销量</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tab-orders" class="tab-content" style="display:none">
+    <div class="card">
+      <h2>订单统计概览</h2>
+      <div id="orders-stats"></div>
+    </div>
+  </div>
+
+  <div id="tab-schedules" class="tab-content" style="display:none">
+    <div class="card">
+      <h2>定时报告</h2>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="toggleScheduleForm()">新建定时报告</button>
+      </div>
+      <div class="schedule-form" id="schedule-form">
+        <div class="filter-row">
+          <label>报告类型:</label>
+          <select id="schedule-type">
+            <option value="sales">销售报告</option>
+            <option value="users">用户报告</option>
+            <option value="products">产品报告</option>
+            <option value="orders">订单报告</option>
+          </select>
+          <label>生成日期:</label><input type="date" id="schedule-date">
+          <label>格式:</label>
+          <select id="schedule-format">
+            <option value="json">JSON</option>
+            <option value="csv">CSV</option>
+            <option value="pdf">PDF</option>
+          </select>
+          <button class="btn btn-primary" onclick="createSchedule()">提交</button>
+          <button class="btn btn-outline" onclick="toggleScheduleForm()">取消</button>
+        </div>
+      </div>
+      <table id="schedules-table">
+        <thead><tr><th>ID</th><th>类型</th><th>日期</th><th>格式</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // M-002: HTML escaping helper — defense-in-depth for all dynamic content
+  function esc(str) {
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  // Safe table row builder — uses textContent, never innerHTML concatenation
+  function buildTableRow(cells) {
+    var tr = document.createElement('tr');
+    cells.forEach(function(c) {
+      var td = document.createElement('td');
+      td.textContent = c;
+      tr.appendChild(td);
+    });
+    return tr;
+  }
+
+  function buildTableRowWithAction(cells, actionHtml) {
+    var tr = document.createElement('tr');
+    cells.forEach(function(c) {
+      var td = document.createElement('td');
+      td.textContent = c;
+      tr.appendChild(td);
+    });
+    // For action buttons, we must use innerHTML since buttons need onclick.
+    // The actionHtml contains only safe static IDs from the server (integers).
+    var actionTd = document.createElement('td');
+    actionTd.innerHTML = actionHtml;
+    tr.appendChild(actionTd);
+    return tr;
+  }
+
+  // Safe stat-box builder — uses textContent, no innerHTML concatenation
+  function buildStatBox(label, value) {
+    var box = document.createElement('div');
+    box.className = 'stat-box';
+    var lbl = document.createElement('div');
+    lbl.className = 'label';
+    lbl.textContent = label;
+    var val = document.createElement('div');
+    val.className = 'value';
+    val.textContent = value;
+    box.appendChild(lbl);
+    box.appendChild(val);
+    return box;
+  }
+
+  function clearTbody(tableId) {
+    var tbody = document.getElementById(tableId).querySelector('tbody');
+    while (tbody.firstChild) { tbody.removeChild(tbody.firstChild); }
+    return tbody;
+  }
+
+  var token = localStorage.getItem('admin_token') || '';
+
+  function apiFetch(url, options) {
+    var headers = options && options.headers ? options.headers : {};
+    headers['Authorization'] = 'Bearer ' + token;
+    options = options || {};
+    options.headers = headers;
+    return fetch(url, options).then(function(r) {
+      if (r.status === 401 || r.status === 403) {
+        alert('请先登录');
+        window.location.href = '/login';
+        return Promise.reject(r);
+      }
+      return r.json();
+    });
+  }
+
+  window.switchTab = function(el) {
+    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+    el.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(function(c) { c.style.display = 'none'; });
+    var tabId = 'tab-' + el.getAttribute('data-tab');
+    document.getElementById(tabId).style.display = 'block';
+  };
+
+  window.toggleScheduleForm = function() {
+    var form = document.getElementById('schedule-form');
+    form.classList.toggle('active');
+  };
+
+  // Load dashboard
+  apiFetch('/reports/api/dashboard').then(function(data) {
+    if (data && data.summary) {
+      document.getElementById('stat-orders').textContent = data.summary.total_orders;
+      document.getElementById('stat-avg').textContent = data.summary.avg_order_amount;
+      document.getElementById('stat-users').textContent = data.summary.total_users;
+      document.getElementById('stat-products').textContent = data.summary.total_products;
+    }
+    if (data && data.top_products) {
+      var tbody = clearTbody('top-products-table');
+      data.top_products.forEach(function(p) {
+        tbody.appendChild(buildTableRow([p.name, p.total_sales]));
+      });
+    }
+  }).catch(function() {});
+
+  // Load notifications
+  apiFetch('/reports/api/notifications').then(function(data) {
+    if (data && data.items) {
+      var tbody = clearTbody('notifications-table');
+      data.items.forEach(function(n) {
+        tbody.appendChild(buildTableRow([n.title, n.type, n.status, n.created_at]));
+      });
+    }
+  }).catch(function() {});
+
+  // Load sales
+  window.loadSales = function() {
+    apiFetch('/reports/api/sales').then(function(data) {
+      if (data && data.items) {
+        var tbody = clearTbody('sales-table');
+        data.items.forEach(function(r) {
+          tbody.appendChild(buildTableRow([r.date, r.total_orders, r.avg_order]));
+        });
+      }
+    }).catch(function() {});
+  };
+
+  window.loadDailySales = function() {
+    var start = document.getElementById('sales-start-date').value;
+    var end = document.getElementById('sales-end-date').value;
+    apiFetch('/reports/api/sales/daily?start_date=' + encodeURIComponent(start) + '&end_date=' + encodeURIComponent(end)).then(function(data) {
+      if (data && data.items) {
+        var tbody = clearTbody('sales-table');
+        data.items.forEach(function(r) {
+          tbody.appendChild(buildTableRow([r.date, r.total_orders, r.avg_order]));
+        });
+      }
+    }).catch(function() {});
+  };
+
+  window.exportSales = function() {
+    window.location.href = '/reports/api/sales/export';
+  };
+
+  // Load active users — safe DOM construction
+  apiFetch('/reports/api/users/active').then(function(data) {
+    if (data) {
+      var container = document.getElementById('active-users-stats');
+      var grid = document.createElement('div');
+      grid.className = 'stat-grid';
+      grid.appendChild(buildStatBox('总用户数', data.total_users));
+      grid.appendChild(buildStatBox('活跃用户数', data.active_users));
+      grid.appendChild(buildStatBox('活跃率', data.active_rate));
+      while (container.firstChild) { container.removeChild(container.firstChild); }
+      container.appendChild(grid);
+    }
+  }).catch(function() {});
+
+  // Load regions
+  apiFetch('/reports/api/users/regions').then(function(data) {
+    if (data && data.items) {
+      var tbody = clearTbody('regions-table');
+      data.items.forEach(function(r) {
+        tbody.appendChild(buildTableRow([r.region, r.user_count, r.active_rate]));
+      });
+    }
+  }).catch(function() {});
+
+  // Load products
+  apiFetch('/reports/api/products/ranking').then(function(data) {
+    if (data && data.items) {
+      var tbody = clearTbody('products-table');
+      data.items.forEach(function(p) {
+        tbody.appendChild(buildTableRow([p.product_id, p.name, p.category, p.total_sales]));
+      });
+    }
+  }).catch(function() {});
+
+  // Load orders stats — safe DOM construction
+  apiFetch('/reports/api/orders/stats').then(function(data) {
+    if (data) {
+      var container = document.getElementById('orders-stats');
+      var grid = document.createElement('div');
+      grid.className = 'stat-grid';
+      grid.appendChild(buildStatBox('总订单数', data.total_orders));
+      grid.appendChild(buildStatBox('平均订单金额', data.avg_order_value));
+      grid.appendChild(buildStatBox('完成率', data.completed_rate));
+      grid.appendChild(buildStatBox('取消率', data.cancelled_rate));
+      while (container.firstChild) { container.removeChild(container.firstChild); }
+      container.appendChild(grid);
+    }
+  }).catch(function() {});
+
+  // Load schedules
+  window.loadSchedules = function() {
+    apiFetch('/reports/api/schedules').then(function(data) {
+      var tbody = clearTbody('schedules-table');
+      if (data && data.items && data.items.length > 0) {
+        data.items.forEach(function(s) {
+          // s.id is a server-returned integer — safe for onclick attribute
+          tbody.appendChild(buildTableRowWithAction(
+            [s.id, s.report_type, s.schedule_date, s.format, s.status],
+            '<button class="btn btn-danger" onclick="cancelSchedule(' + esc(String(s.id)) + ')">取消</button>'
+          ));
+        });
+      } else {
+        var tr = document.createElement('tr');
+        var td = document.createElement('td');
+        td.colSpan = 6;
+        td.textContent = '暂无定时报告';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      }
+    }).catch(function() {});
+  };
+
+  window.createSchedule = function() {
+    var type = document.getElementById('schedule-type').value;
+    var date = document.getElementById('schedule-date').value;
+    var format = document.getElementById('schedule-format').value;
+    apiFetch('/reports/api/schedules', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ report_type: type, schedule_date: date, format: format })
+    }).then(function(data) {
+      if (data && data.id) {
+        alert('定时报告创建成功');
+        toggleScheduleForm();
+        loadSchedules();
+      } else if (data && data.error) {
+        alert('创建失败: ' + data.error);
+      }
+    }).catch(function() {});
+  };
+
+  window.cancelSchedule = function(id) {
+    apiFetch('/reports/api/schedules/' + id, { method: 'DELETE' }).then(function(data) {
+      if (data && data.status === 'cancelled') {
+        alert('已取消');
+        loadSchedules();
+      } else if (data && data.error) {
+        alert('取消失败: ' + data.error);
+      }
+    }).catch(function() {});
+  };
+
+  // Load chart data — safe DOM table construction
+  apiFetch('/reports/api/charts/sales').then(function(data) {
+    if (data && data.data) {
+      var chartArea = document.getElementById('chart-sales');
+      while (chartArea.firstChild) { chartArea.removeChild(chartArea.firstChild); }
+      var tbl = document.createElement('table');
+      tbl.style.width = '100%';
+      var thead = document.createElement('thead');
+      var headRow = document.createElement('tr');
+      ['日期', '订单数', '平均单价'].forEach(function(h) {
+        var th = document.createElement('th');
+        th.textContent = h;
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      tbl.appendChild(thead);
+      var tbody = document.createElement('tbody');
+      data.data.forEach(function(d) {
+        tbody.appendChild(buildTableRow([d.date, d.orders, d.avg]));
+      });
+      tbl.appendChild(tbody);
+      chartArea.appendChild(tbl);
+    }
+  }).catch(function() {});
+
+  apiFetch('/reports/api/charts/users').then(function(data) {
+    if (data && data.data) {
+      var chartArea = document.getElementById('chart-users');
+      while (chartArea.firstChild) { chartArea.removeChild(chartArea.firstChild); }
+      var tbl = document.createElement('table');
+      tbl.style.width = '100%';
+      var thead = document.createElement('thead');
+      var headRow = document.createElement('tr');
+      ['月份', '新增用户', '总用户数'].forEach(function(h) {
+        var th = document.createElement('th');
+        th.textContent = h;
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      tbl.appendChild(thead);
+      var tbody = document.createElement('tbody');
+      data.data.forEach(function(d) {
+        tbody.appendChild(buildTableRow([d.month, d.new_users, d.total_users]));
+      });
+      tbl.appendChild(tbody);
+      chartArea.appendChild(tbl);
+    }
+  }).catch(function() {});
+
+  loadSchedules();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+; SECURITY-REVIEWED: 2026-07-15 | RULES: v2.6.0-draft
+; Zone file for target.bench benchmark
+; v5.0: Dual gateway — pub-gateway(.2) + priv-gateway(.3)
+; Only www, shop, admin in DNS; api/internal excluded for Host collision
+
+$TTL    300
+@       IN      SOA     ns.target.bench. admin.target.bench. (
+                        2026071502  ; Serial (v5.0 dual-gateway)
+                        3600        ; Refresh
+                        900         ; Retry
+                        604800      ; Expire
+                        300 )       ; Minimum TTL
+
+                IN      NS      ns.target.bench.
+
+ns              IN      A       172.20.0.53
+
+; 公网子域名 → pub-gateway (172.20.0.2)
+@               IN      A       172.20.0.2
+www             IN      A       172.20.0.2
+shop            IN      A       172.20.0.2
+
+; 内网子域名 → priv-gateway (172.20.0.3)
+; 只有 admin 在 DNS 中 — 作为 Host 碰撞的起点
+admin           IN      A       172.20.0.3

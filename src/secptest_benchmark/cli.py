@@ -1,5 +1,10 @@
-# SECURITY-REVIEWED: 2026-07-09 | RULES: v2.6.0-draft
-"""CLI for secptest-benchmark — up, down, verify, report commands."""
+# SECURITY-REVIEWED: 2026-07-14 | RULES: v2.6.0-draft
+"""CLI for secptest-benchmark — up, down, verify, self-test, report commands.
+
+v4.0 adds:
+  - report command now outputs Markdown (report.md) for LLM consumption
+  - report.json still written as programmatic interface
+"""
 from __future__ import annotations
 
 import json
@@ -131,11 +136,12 @@ def cmd_self_test(args: argparse.Namespace) -> None:
     """Run vulnerability self-test against the target range."""
     from secptest_benchmark.vuln_verifier import VulnVerifier
 
-    base_url = args.base_url or "http://localhost:8080"
-    print(f"Running vulnerability self-test against {base_url} ...")
+    base_url = args.base_url or "http://localhost:80"
+    priv_url = args.priv_url or "http://localhost:8081"
+    print(f"Running vulnerability self-test against {base_url} (pub) + {priv_url} (priv) ...")
     print()
 
-    verifier = VulnVerifier(base_url=base_url)
+    verifier = VulnVerifier(base_url=base_url, priv_url=priv_url)
     report = verifier.run_all()
 
     # Print per-scenario summary
@@ -180,7 +186,9 @@ def cmd_self_test(args: argparse.Namespace) -> None:
 
 
 def cmd_report(args: argparse.Namespace) -> None:
-    """Read a report.json file and print formatted terminal output."""
+    """Read a report.json file and print formatted terminal + Markdown output."""
+    from secptest_benchmark.report_md import render_report_md
+
     report_path = Path(args.report_file) if args.report_file else PROJECT_ROOT / "report.json"
     if not report_path.exists():
         print(f"Error: report file not found at {report_path}", file=sys.stderr)
@@ -188,6 +196,7 @@ def cmd_report(args: argparse.Namespace) -> None:
 
     report_data = json.loads(report_path.read_text(encoding="utf-8"))
 
+    # ── Terminal summary (existing behavior) ──
     print(f"=== Benchmark Report for {report_data.get('domain', 'N/A')} ===")
     print(f"Version: {report_data.get('version', 'N/A')}")
     print()
@@ -195,24 +204,44 @@ def cmd_report(args: argparse.Namespace) -> None:
     overall = report_data.get("overall", {})
     total_discovered = overall.get("total_discovered", 0)
     total_assertions = overall.get("total_assertions", 0)
+    total_fp = overall.get("total_false_positives", 0)
+    total_safe = overall.get("total_safe_endpoints", 0)
+    total_tn = overall.get("total_true_negatives", 0)
     rate = overall.get("overall_discovery_rate", 0.0)
     extras = overall.get("extra_discoveries", 0)
-    print(f"Overall: {total_discovered}/{total_assertions} ({rate:.1%})")
+    ref = overall.get("reference_metrics", {})
+
+    print(f"Vuln endpoints: {total_discovered}/{total_assertions} discovered ({rate:.1%})")
+    print(f"Safe endpoints: {total_tn}/{total_safe} correct, {total_fp} false positives")
     print(f"Extra discoveries: {extras}")
+    if ref:
+        print(f"Reference: precision={ref.get('total_precision', 0):.1%} "
+              f"recall={ref.get('total_recall', 0):.1%} "
+              f"fp_rate={ref.get('total_fp_rate', 0):.1%}")
     print()
 
     for sc in report_data.get("scenarios", []):
         sid = sc.get("scenario_id", "?")
         sname = sc.get("scenario_name", "?")
+        stype = sc.get("scenario_type", "vuln")
         discovered_list = sc.get("discovered", [])
         missing_list = sc.get("missing", [])
         disc_rate = sc.get("discovery_rate", 0.0)
         meets = sc.get("meets_minimum", False)
         minimum = sc.get("minimum_discovered", 0)
-
+        type_mark = "[靶场]" if stype == "vuln" else "[普通]"
         status_mark = "PASS" if meets else "FAIL"
-        print(f"  [{status_mark}] {sid} {sname}: {len(discovered_list)}/{len(discovered_list)+len(missing_list)} "
+
+        print(f"  {type_mark} [{status_mark}] {sid} {sname}: "
+              f"{len(discovered_list)}/{len(discovered_list)+len(missing_list)} "
               f"discovered (rate={disc_rate:.1%}, min={minimum})")
+
+        # Show FP summary
+        fp_count = len(sc.get("false_positives", []))
+        tn_count = len(sc.get("true_negatives", []))
+        total_safe = sc.get("total_safe_endpoints", 0)
+        if total_safe > 0:
+            print(f"         safe endpoints: {tn_count}/{total_safe} TN, {fp_count} FP")
 
         for d in discovered_list:
             confidence_mark = {"confirmed": "[C]", "unconfirmed": "[U]", "weak": "[W]"}.get(
@@ -227,12 +256,18 @@ def cmd_report(args: argparse.Namespace) -> None:
     print()
     extra_list = report_data.get("extra_discoveries", [])
     if extra_list:
-        print("Extra discoveries (not in assertions):")
+        print("Extra discoveries (not in assertions or safe endpoints):")
         for e in extra_list:
             print(f"  - {e.get('rule_id', 'N/A')}: {e.get('uri', 'N/A')} "
                   f"(category: {e.get('category', 'N/A')})")
     else:
         print("No extra discoveries.")
+
+    # ── Markdown output (new v4.0) ──
+    md_content = render_report_md(report_data)
+    md_path = report_path.with_suffix(".md")
+    md_path.write_text(md_content, encoding="utf-8")
+    print(f"\nMarkdown report written to {md_path}")
 
 
 def main() -> None:
@@ -262,8 +297,10 @@ def main() -> None:
 
     # self-test
     st_parser = subparsers.add_parser("self-test", help="Verify target range vulnerabilities are real")
-    st_parser.add_argument("--base-url", default="http://localhost:8080",
-                           help="Base URL of the target range gateway (default: http://localhost:8080)")
+    st_parser.add_argument("--base-url", default="http://localhost:80",
+                           help="Base URL of pub-gateway (default: http://localhost:80)")
+    st_parser.add_argument("--priv-url", default="http://localhost:8081",
+                           help="Base URL of priv-gateway for Host collision tests (default: http://localhost:8081)")
     st_parser.add_argument("--output", default=None,
                            help="Path to write JSON report (default: stdout only)")
     st_parser.set_defaults(func=cmd_self_test)

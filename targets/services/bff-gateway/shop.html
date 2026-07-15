@@ -1,0 +1,206 @@
+<!-- SECURITY-REVIEWED: 2026-07-14 | RULES: v2.6.0-draft -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apple Store 门店前台</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f7; color: #1d1d1f; }
+    .header { background: #1d1d1f; color: #fff; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .nav-links a { color: #f5f5f7; text-decoration: none; margin-left: 20px; font-size: 14px; }
+    .nav-links a:hover { color: #2997ff; }
+    .search-bar { background: #fff; padding: 16px 24px; border-bottom: 1px solid #d2d2d7; }
+    .search-bar form { display: flex; gap: 12px; max-width: 600px; }
+    .search-bar input { flex: 1; padding: 10px 14px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; }
+    .search-bar button { padding: 10px 20px; background: #0071e3; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+    .search-bar button:hover { background: #0077ed; }
+    .content { max-width: 980px; margin: 0 auto; padding: 24px; }
+    .section-title { font-size: 28px; font-weight: 700; margin-bottom: 20px; }
+    .promotions { margin-bottom: 32px; }
+    .promo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+    .promo-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #d2d2d7; }
+    .promo-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .promo-card p { font-size: 13px; color: #86868b; }
+    .promo-card .dates { font-size: 12px; color: #86868b; margin-top: 8px; }
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+    .product-card { background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #d2d2d7; text-align: center; }
+    .product-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+    .product-card .price { font-size: 18px; font-weight: 700; color: #1d1d1f; }
+    .product-card .category { font-size: 12px; color: #86868b; }
+    .product-card .stock { font-size: 12px; color: #34c759; margin-top: 4px; }
+    .product-card a { color: #0071e3; font-size: 13px; text-decoration: none; margin-top: 8px; display: block; }
+    .categories { margin-bottom: 32px; }
+    .cat-list { display: flex; gap: 12px; flex-wrap: wrap; }
+    .cat-item { background: #fff; padding: 12px 20px; border-radius: 8px; border: 1px solid #d2d2d7; font-size: 14px; cursor: pointer; text-decoration: none; color: #1d1d1f; }
+    .cat-item:hover { border-color: #0071e3; color: #0071e3; }
+    .search-results { margin-bottom: 32px; }
+    .review-form { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #d2d2d7; margin-bottom: 32px; }
+    .review-form label { font-size: 14px; font-weight: 500; display: block; margin-bottom: 6px; }
+    .review-form input, .review-form textarea { width: 100%; padding: 10px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; margin-bottom: 12px; }
+    .review-form textarea { height: 80px; resize: vertical; }
+    .review-form button { padding: 10px 20px; background: #0071e3; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+    .message { padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
+    .message.success { background: #d1ffd6; color: #1a7a1a; }
+    .message.error { background: #ffd1d1; color: #7a1a1a; }
+    #messageArea { display: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Apple Store</h1>
+    <div class="nav-links">
+      <a href="/api/shop/promotions">优惠活动</a>
+      <a href="/api/shop/categories">分类浏览</a>
+      <a href="/api/account">我的账户</a>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <form id="searchForm" method="GET" action="/api/shop/products/search">
+      <input type="text" name="q" placeholder="搜索商品名称或分类..." maxlength="100" required>
+      <button type="submit">搜索</button>
+    </form>
+  </div>
+
+  <div class="content">
+    <div id="messageArea"></div>
+
+    <!-- 优惠活动 -->
+    <div class="promotions">
+      <h2 class="section-title">优惠活动</h2>
+      <div id="promoGrid" class="promo-grid"></div>
+    </div>
+
+    <!-- 分类 -->
+    <div class="categories">
+      <h2 class="section-title">商品分类</h2>
+      <div id="catList" class="cat-list"></div>
+    </div>
+
+    <!-- 商品 -->
+    <div>
+      <h2 class="section-title">全部商品</h2>
+      <div id="productGrid" class="product-grid"></div>
+    </div>
+
+    <!-- 评价表单 -->
+    <div class="review-form">
+      <h2 class="section-title" style="font-size:20px;">提交商品评价</h2>
+      <form id="reviewForm" method="POST" action="/api/shop/products/1/reviews">
+        <label for="reviewProduct">商品ID</label>
+        <input type="number" id="reviewProduct" name="product_id" min="1" value="1" required>
+        <label for="reviewRating">评分 (1-5)</label>
+        <input type="number" id="reviewRating" name="rating" min="1" max="5" value="5" required>
+        <label for="reviewContent">评价内容 (最多500字)</label>
+        <textarea id="reviewContent" name="content" maxlength="500" required></textarea>
+        <button type="submit">提交评价</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // SECURITY-REVIEWED: 2026-07-14 | RULES: v2.6.0-draft
+    // No innerHTML or eval usage — all DOM updates use safe methods
+
+    function showMessage(text, type) {
+      var area = document.getElementById('messageArea');
+      area.style.display = 'block';
+      area.className = 'message ' + type;
+      area.textContent = text;
+    }
+
+    function createEl(tag, textContent) {
+      var el = document.createElement(tag);
+      if (textContent) {
+        el.textContent = textContent;
+      }
+      return el;
+    }
+
+    // Load promotions
+    fetch('/api/shop/promotions')
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        var grid = document.getElementById('promoGrid');
+        data.promotions.forEach(function(p) {
+          var card = createEl('div');
+          card.className = 'promo-card';
+          var h3 = createEl('h3', p.title);
+          var desc = createEl('p', p.description);
+          var dates = createEl('div', p.dates ? p.dates : p.start_date + ' - ' + p.end_date);
+          dates.className = 'dates';
+          card.appendChild(h3);
+          card.appendChild(desc);
+          card.appendChild(dates);
+          grid.appendChild(card);
+        });
+      })
+      .catch(function() { showMessage('加载优惠活动失败', 'error'); });
+
+    // Load categories
+    fetch('/api/shop/categories')
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        var list = document.getElementById('catList');
+        data.categories.forEach(function(c) {
+          var link = createEl('a', c.name + ' (' + c.product_count + '件)');
+          link.className = 'cat-item';
+          link.href = '/api/shop/products/search?q=' + encodeURIComponent(c.slug);
+          list.appendChild(link);
+        });
+      })
+      .catch(function() { showMessage('加载分类失败', 'error'); });
+
+    // Load products
+    fetch('/api/shop/products')
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        var grid = document.getElementById('productGrid');
+        data.products.forEach(function(p) {
+          var card = createEl('div');
+          card.className = 'product-card';
+          var name = createEl('h3', p.name);
+          var price = createEl('div', p.price);
+          price.className = 'price';
+          var detail = createEl('a', '查看详情');
+          detail.href = '/api/shop/products/' + p.id;
+          card.appendChild(name);
+          card.appendChild(price);
+          card.appendChild(detail);
+          grid.appendChild(card);
+        });
+      })
+      .catch(function() { showMessage('加载商品失败', 'error'); });
+
+    // Handle review form submission via fetch (POST JSON)
+    document.getElementById('reviewForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var pid = document.getElementById('reviewProduct').value;
+      var rating = document.getElementById('reviewRating').value;
+      var content = document.getElementById('reviewContent').value;
+      var token = document.querySelector('meta[name="session-token"]');
+      var headers = {'Content-Type': 'application/json'};
+      if (token && token.content) {
+        headers['X-Session-Token'] = token.content;
+      }
+      fetch('/api/shop/products/' + pid + '/reviews', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({rating: parseInt(rating, 10), content: content})
+      })
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        if (data.error) {
+          showMessage(data.error, 'error');
+        } else {
+          showMessage('评价提交成功', 'success');
+        }
+      })
+      .catch(function() { showMessage('提交失败，请检查登录状态', 'error'); });
+    });
+  </script>
+</body>
+</html>

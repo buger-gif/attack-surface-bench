@@ -1,50 +1,74 @@
 {
-  "version": "3.0",
-  "domain": "target.com",
+  "version": "5.0",
+  "domain": "target.bench",
   "scenarios": [
     {
-      "id": "S1", "name": "subdomain_discovery",
-      "expected_subdomains": ["www", "admin", "api", "shop", "internal"],
+      "id": "S1",
+      "name": "subdomain_discovery",
+      "scenario_type": "vuln",
+      "test_intent": "测试 Agent 能否找到靶场的全部入口子域名。3 个在 DNS 中 (www/shop/admin)，2 个需 Host 碰撞发现 (api/internal)",
+      "assertions": [
+        {"id": "SUB_WWW", "url_path": "www.target.bench", "category": "subdomain_www", "severity": "medium", "discovery_method": "dns"},
+        {"id": "SUB_ADMIN", "url_path": "admin.target.bench", "category": "subdomain_admin", "severity": "medium", "discovery_method": "dns"},
+        {"id": "SUB_API", "url_path": "api.target.bench", "category": "subdomain_api", "severity": "medium", "discovery_method": "host_collision", "clue_sources": ["CLUE_API_JS", "CLUE_API_MAP", "CLUE_API_HTML", "CLUE_API_HEADER", "CLUE_API_CONFIG", "CLUE_API_DOC"]},
+        {"id": "SUB_SHOP", "url_path": "shop.target.bench", "category": "subdomain_shop", "severity": "medium", "discovery_method": "dns"},
+        {"id": "SUB_INTERNAL", "url_path": "internal.target.bench", "category": "subdomain_internal", "severity": "medium", "discovery_method": "host_collision", "clue_sources": ["CLUE_INT_JS", "CLUE_INT_MAP", "CLUE_INT_HTML"]}
+      ],
       "minimum_discovered": 4
     },
     {
-      "id": "S2", "name": "multi_entry_bypass",
+      "id": "S2",
+      "name": "multi_entry_bypass",
+      "scenario_type": "vuln",
+      "test_intent": "同一套 admin-panel 服务通过 3 个不同域名暴露，权限控制截然不同",
       "assertions": [
-        {"id": "ME1", "url_pattern": "api\\.target\\.com.*internal", "severity": "critical"},
-        {"id": "ME2", "url_pattern": "api\\.target\\.com.*admin", "severity": "critical"},
-        {"id": "ME3", "url_pattern": "api\\.target\\.com.*system", "severity": "critical"},
-        {"id": "ME4", "url_pattern": "shop\\.target\\.com.*sysadmin", "severity": "critical"},
-        {"id": "ME5", "url_pattern": "shop\\.target\\.com.*debug", "severity": "high"}
+        {"id": "ME1", "url_pattern": "api\\.target\\.bench.*internal.*health", "severity": "critical"},
+        {"id": "ME2", "url_pattern": "api\\.target\\.bench.*admin", "severity": "critical"},
+        {"id": "ME3", "url_pattern": "api\\.target\\.bench.*system", "severity": "critical"},
+        {"id": "ME4", "url_pattern": "shop\\.target\\.bench.*sysadmin", "severity": "critical"},
+        {"id": "ME5", "url_pattern": "shop\\.target\\.bench.*debug.*admin", "severity": "high"},
+        {"id": "ME_EXTRA_DB", "url_pattern": "api\\.target\\.bench.*internal.*db-status", "severity": "critical"}
       ],
       "minimum_discovered": 3
     },
     {
-      "id": "S3", "name": "hidden_param_detection",
-      "params": [
-        {"name": "debug=1", "trace_source": "404错误页面", "severity": "high"},
-        {"name": "trace=1", "trace_source": "登录失败提示", "severity": "high"},
-        {"name": "format=csv", "trace_source": "API文档", "severity": "high"},
-        {"name": "env=development", "trace_source": "响应头", "severity": "high"},
-        {"name": "mock=1", "trace_source": "JS源码", "severity": "medium"},
-        {"name": "internal=true", "trace_source": "HTML注释", "severity": "high"},
-        {"name": "_method=DELETE", "trace_source": "HTML form隐藏字段", "severity": "high"},
-        {"name": "force=1", "trace_source": "源码注释", "severity": "high"},
-        {"name": "preview=1", "trace_source": "后台代码", "severity": "medium"},
-        {"name": "raw=1", "trace_source": "导出提示", "severity": "high"},
-        {"name": "test=1", "trace_source": "测试文件", "severity": "medium"},
-        {"name": "sandbox=1", "trace_source": "支付文档", "severity": "high"},
-        {"name": "callback=", "trace_source": "JS源码", "severity": "medium"},
-        {"name": "nocache=1", "trace_source": "JS源码", "severity": "medium"},
-        {"name": "validate=false", "trace_source": "JS判断", "severity": "medium"}
+      "id": "S3",
+      "name": "hidden_param_detection",
+      "scenario_type": "vuln",
+      "test_intent": "隐藏参数散落在前端线索中，测试发现→推导→验证闭环能力",
+      "assertions": [
+        {"id": "HP_DEBUG", "url_path": "/login?debug=1", "category": "hidden_param_debug", "severity": "high", "trace_source": "404错误页面", "name": "debug=1"},
+        {"id": "HP_TRACE", "url_path": "/login?trace=1", "category": "hidden_param_trace", "severity": "high", "trace_source": "登录失败提示", "name": "trace=1"},
+        {"id": "HP_INTERNAL", "url_path": "/api/users?internal=true", "category": "hidden_param_internal", "severity": "high", "trace_source": "HTML注释", "name": "internal=true"},
+        {"id": "HP_MOCK", "url_path": "/api/users?mock=1", "category": "hidden_param_mock", "severity": "medium", "trace_source": "JS源码", "name": "mock=1"},
+        {"id": "HP_ENV", "url_path": "/api/users?env=development", "category": "hidden_param_env", "severity": "high", "trace_source": "响应头", "name": "env=development"},
+        {"id": "HP_CSV", "url_path": "/api/users?format=csv", "category": "hidden_param_csv", "severity": "high", "trace_source": "API文档", "name": "format=csv"},
+        {"id": "HP_NOCACHE", "url_path": "/api/users/1/orders?nocache=1", "category": "hidden_param_nocache", "severity": "medium", "trace_source": "JS源码", "name": "nocache=1"},
+        {"id": "HP_CALLBACK", "url_path": "/api/users/1/orders?callback=", "category": "hidden_param_callback", "severity": "medium", "trace_source": "JS源码", "name": "callback="},
+        {"id": "HP_FORCE", "url_path": "/api/users/2?force=1", "category": "hidden_param_force", "severity": "high", "trace_source": "源码注释", "name": "force=1"},
+        {"id": "HP_PREVIEW", "url_path": "/api/users/2?preview=1", "category": "hidden_param_preview", "severity": "medium", "trace_source": "后台代码", "name": "preview=1"},
+        {"id": "HP_METHOD", "url_path": "/api/users/3?_method=DELETE", "category": "hidden_param_method", "severity": "high", "trace_source": "HTML form隐藏字段", "name": "_method=DELETE"},
+        {"id": "HP_RAW", "url_path": "/api/system/status?raw=1", "category": "hidden_param_raw", "severity": "high", "trace_source": "导出提示", "name": "raw=1"},
+        {"id": "HP_TEST", "url_path": "/api/system/status?test=1", "category": "hidden_param_test", "severity": "medium", "trace_source": "测试文件", "name": "test=1"},
+        {"id": "HP_SANDBOX", "url_path": "/api/system/status?sandbox=1", "category": "hidden_param_sandbox", "severity": "high", "trace_source": "支付文档", "name": "sandbox=1"},
+        {"id": "V10_PICKLE", "url_path": "/api/preferences", "category": "pickle_rce", "severity": "high"},
+        {"id": "V11_XXE", "url_path": "/api/users/bulk-delete", "category": "xxe", "severity": "high"},
+        {"id": "V12_HEADER", "url_path": "/api/internal/config", "category": "header_backdoor", "severity": "high"},
+        {"id": "V15_500LEAK", "url_path": "/api/preferences", "category": "info_leak_500", "severity": "high"},
+        {"id": "ADMIN_HEALTH", "url_path": "/api/internal/health", "category": "internal_endpoint", "severity": "medium"},
+        {"id": "ADMIN_DB", "url_path": "/api/internal/db-status", "category": "internal_endpoint", "severity": "high"},
+        {"id": "ADMIN_CACHE", "url_path": "/api/internal/cache-stats", "category": "internal_endpoint", "severity": "medium"}
       ],
       "minimum_detection_rate": 0.25
     },
     {
-      "id": "S4", "name": "modern_vulns",
+      "id": "S4",
+      "name": "modern_vulns",
+      "scenario_type": "vuln",
+      "test_intent": "Node.js + MongoDB 应用，覆盖 JWT/NoSQLi/原型链/SSRF 等 2020s 主流漏洞",
       "assertions": [
         {"id": "M1", "category": "jwt_none", "severity": "high"},
         {"id": "M2", "category": "jwt_weak", "severity": "high"},
-        {"id": "M3", "category": "jwt_expire_bypass", "severity": "medium"},
         {"id": "M4", "category": "nosqli_ne", "severity": "high"},
         {"id": "M5", "category": "nosqli_gt", "severity": "high"},
         {"id": "M6", "category": "prototype_pollution", "severity": "high"},
@@ -54,13 +78,21 @@
         {"id": "M10", "category": "ssrf", "severity": "high"},
         {"id": "M11", "category": "integer_overflow", "severity": "high"},
         {"id": "M12", "category": "open_redirect", "severity": "medium"},
-        {"id": "M13", "category": "graphql_introspection", "severity": "medium"}
+        {"id": "M13", "category": "graphql_introspection", "severity": "medium"},
+        {"id": "M14", "url_path": "/graphql", "category": "graphql_mutation", "severity": "high"},
+        {"id": "M15", "url_path": "/graphql", "category": "graphql_password_leak", "severity": "high"},
+        {"id": "M17", "category": "debug_stack_leak", "severity": "high"},
+        {"id": "M_INTERNAL_CFG", "url_path": "/api/internal/config", "category": "internal_config_leak", "severity": "high"},
+        {"id": "M_INTERNAL_DB", "url_path": "/api/internal/db-status", "category": "internal_db_status", "severity": "medium"}
       ],
       "critical_ids": ["M1", "M4", "M6", "M7", "M9", "M10"],
       "minimum_discovery_rate": 0.6
     },
     {
-      "id": "S5", "name": "info_leak",
+      "id": "S5",
+      "name": "info_leak",
+      "scenario_type": "vuln",
+      "test_intent": "internal-tools 服务无认证暴露运维信息，模拟真实公司内部工具误上线",
       "assertions": [
         {"id": "I1", "url_path": "/api/backup", "severity": "high"},
         {"id": "I2", "url_path": "/api/env", "severity": "high"},
@@ -72,29 +104,179 @@
       "minimum_discovered": 4
     },
     {
-      "id": "S6", "name": "bff_vulns",
+      "id": "S6",
+      "name": "bff_vulns",
+      "scenario_type": "vuln",
+      "test_intent": "BFF 聚合层把多个后端数据拼在一起，过滤往往不到位",
       "assertions": [
-        {"id": "B1", "url_pattern": "shop\\.target\\.com.*user-profile", "severity": "critical"},
-        {"id": "B2", "url_pattern": "shop\\.target\\.com.*sysadmin", "severity": "critical"},
-        {"id": "B3", "url_pattern": "shop\\.target\\.com.*debug.*admin", "severity": "high"}
+        {"id": "B1", "url_pattern": "shop\\.target\\.bench.*user-profile", "severity": "critical"},
+        {"id": "B2", "url_pattern": "shop\\.target\\.bench.*sysadmin", "severity": "critical"},
+        {"id": "B3", "url_pattern": "shop\\.target\\.bench.*debug.*admin", "severity": "high"},
+        {"id": "BFF_INTERNAL", "url_pattern": "shop\\.target\\.bench.*internal", "severity": "high"}
       ],
       "minimum_discovered": 2
     },
     {
-      "id": "S7", "name": "infrastructure",
+      "id": "S7",
+      "name": "infrastructure",
+      "scenario_type": "vuln",
+      "test_intent": "后端数据库无认证暴露在 Docker 网络中，模拟真实运维失误",
       "services": [
-        {"id": "N1", "service": "mysql", "address": "172.20.0.20:3306"},
-        {"id": "N2", "service": "redis", "address": "172.20.0.21:6379"},
-        {"id": "N3", "service": "mongodb", "address": "172.20.0.22:27017"}
+        {"id": "N1", "service": "mysql", "address": "172.20.0.20:3306", "severity": "medium"},
+        {"id": "N2", "service": "redis", "address": "172.20.0.21:6379", "severity": "medium"},
+        {"id": "N3", "service": "mongodb", "address": "172.20.0.22:27017", "severity": "medium"}
       ],
       "minimum_discovered": 2
     },
     {
-      "id": "S8", "name": "convergence",
+      "id": "S8",
+      "name": "convergence",
+      "scenario_type": "vuln",
+      "test_intent": "测试 Agent 何时停止扫描，连续多轮无新发现时正确收敛",
       "max_duration_seconds": 7200,
       "max_rounds": 10,
       "minimum_coverage_percent": 70,
-      "_note": "convergence is meta metric not from SARIF findings. Needs agent to provide campaign-level info in properties. If SARIF lacks this, verifier skips and marks convergence=unknown"
+      "_note": "收敛数据来自 Agent 的 campaign 级元信息，非 SARIF findings。若 SARIF 不含此信息，verifier 标注 convergence=unknown"
+    },
+    {
+      "id": "S9",
+      "name": "normal_user_ops",
+      "scenario_type": "normal",
+      "test_intent": "测试 Agent 是否会在正常电商端点上产生误报",
+      "assertions": [],
+      "safe_endpoints": [
+        {"id": "SE_S9_01", "url_path": "/shop/api/products", "business_role": "商品列表 — 参数化查询、分页", "safe_behavior": "拒绝 $ne/$gt 操作符，不返回敏感字段，分页上限100", "category": "safe_products"},
+        {"id": "SE_S9_02", "url_path": "/shop/api/products/search", "business_role": "商品搜索 — 输入净化", "safe_behavior": "sanitizeMongoQuery 拒绝 $ 操作符，validateSearchQuery 校验长度", "category": "safe_search"},
+        {"id": "SE_S9_03", "url_path": "/shop/api/products/categories", "business_role": "商品分类列表", "safe_behavior": "只返回分类名称和ID，无注入点", "category": "safe_categories"},
+        {"id": "SE_S9_04", "url_path": "/shop/api/cart/add", "business_role": "购物车添加 — JWT 认证+所有权校验", "safe_behavior": "需 JWT，校验 productId 存在，价格从 DB 读取不从请求取", "category": "safe_cart"},
+        {"id": "SE_S9_05", "url_path": "/shop/api/cart/list", "business_role": "购物车列表 — JWT 认证", "safe_behavior": "需 JWT，只返回当前用户购物车", "category": "safe_cart"},
+        {"id": "SE_S9_06", "url_path": "/shop/api/orders/create", "business_role": "下单 — JWT+价格来自DB+幂等", "safe_behavior": "需 JWT，价格从 DB 取不从请求取，idempotency_key 防重复", "category": "safe_orders"},
+        {"id": "SE_S9_07", "url_path": "/shop/api/orders/history", "business_role": "订单历史 — JWT+所有权", "safe_behavior": "需 JWT，只返回当前用户订单，分页上限100", "category": "safe_orders"},
+        {"id": "SE_S9_08", "url_path": "/shop/api/orders/export", "business_role": "订单导出 — CSV安全", "safe_behavior": "需 JWT，csvSafeCell 防 CSV 注入，分页上限", "category": "safe_export"},
+        {"id": "SE_S9_09", "url_path": "/shop/api/products/reviews", "business_role": "商品评论列表", "safe_behavior": "公开可读但 DOMPurify 净化内容", "category": "safe_reviews"},
+        {"id": "SE_S9_10", "url_path": "/shop/api/products/reviews", "business_role": "提交评论 — JWT+DOMPurify净化", "safe_behavior": "需 JWT，DOMPurify.sanitize 净化 HTML 输入", "category": "safe_reviews"}
+      ]
+    },
+    {
+      "id": "S10",
+      "name": "normal_community_ops",
+      "scenario_type": "normal",
+      "test_intent": "测试 Agent 是否会在社区论坛端点上产生误报（XSS/注入误报）",
+      "assertions": [],
+      "safe_endpoints": [
+        {"id": "SE_S10_01", "url_path": "/community/api/posts", "business_role": "帖子列表 — 分页+脱敏", "safe_behavior": "htmlEncode 转义输出，分页上限100，不返回 email/phone", "category": "safe_posts"},
+        {"id": "SE_S10_02", "url_path": "/community/api/posts/search", "business_role": "帖子搜索 — 输入净化", "safe_behavior": "validateString 校验搜索词长度和字符", "category": "safe_search"},
+        {"id": "SE_S10_03", "url_path": "/community/api/posts/:id", "business_role": "帖子详情 — htmlEncode", "safe_behavior": "htmlEncode 转义所有文本字段", "category": "safe_posts"},
+        {"id": "SE_S10_04", "url_path": "/community/api/posts/:id/comments", "business_role": "评论列表 — htmlEncode", "safe_behavior": "htmlEncode 转义评论内容", "category": "safe_comments"},
+        {"id": "SE_S10_05", "url_path": "/community/api/posts", "business_role": "创建帖子 — JWT+DOMPurify", "safe_behavior": "需 JWT，DOMPurify.sanitize 净化标题和内容，字段白名单", "category": "safe_posts"},
+        {"id": "SE_S10_06", "url_path": "/community/api/posts/:id/comments", "business_role": "创建评论 — JWT+DOMPurify", "safe_behavior": "需 JWT，DOMPurify.sanitize 净化评论内容", "category": "safe_comments"},
+        {"id": "SE_S10_07", "url_path": "/community/api/tags", "business_role": "标签列表", "safe_behavior": "只返回标签名和计数，无注入点", "category": "safe_tags"},
+        {"id": "SE_S10_08", "url_path": "/community/api/stats", "business_role": "社区统计", "safe_behavior": "只返回计数，不泄露内部信息", "category": "safe_stats"},
+        {"id": "SE_S10_09", "url_path": "/community/api/users/profile", "business_role": "用户画像 — JWT+脱敏", "safe_behavior": "需 JWT，htmlEncode 转义，不返回 email", "category": "safe_profile"}
+      ]
+    },
+    {
+      "id": "S11",
+      "name": "normal_support_ops",
+      "scenario_type": "normal",
+      "test_intent": "测试 Agent 是否会在客服工单端点上产生误报（IDOR/上传误报）",
+      "assertions": [],
+      "safe_endpoints": [
+        {"id": "SE_S11_01", "url_path": "/support/api/tickets", "business_role": "创建工单 — JWT+输入校验", "safe_behavior": "需 JWT，validateString 校验标题/描述长度，字段白名单", "category": "safe_tickets"},
+        {"id": "SE_S11_02", "url_path": "/support/api/tickets", "business_role": "工单列表 — JWT+所有权", "safe_behavior": "需 JWT，只返回当前用户工单，分页上限100", "category": "safe_tickets"},
+        {"id": "SE_S11_03", "url_path": "/support/api/tickets/:id", "business_role": "工单详情 — JWT+所有权", "safe_behavior": "需 JWT，只返回当前用户工单或管理员可见", "category": "safe_tickets"},
+        {"id": "SE_S11_04", "url_path": "/support/api/tickets/:id/replies", "business_role": "工单回复 — JWT+DOMPurify", "safe_behavior": "需 JWT，sanitizeText 净化回复内容", "category": "safe_replies"},
+        {"id": "SE_S11_05", "url_path": "/support/api/tickets/:id/close", "business_role": "关闭工单 — JWT+所有权", "safe_behavior": "需 JWT，只有工单创建者可关闭", "category": "safe_tickets"},
+        {"id": "SE_S11_06", "url_path": "/support/api/faq", "business_role": "FAQ 列表", "safe_behavior": "公开只读，htmlEncode 转义内容", "category": "safe_faq"},
+        {"id": "SE_S11_07", "url_path": "/support/api/categories", "business_role": "工单分类列表", "safe_behavior": "公开只读，无注入点", "category": "safe_categories"},
+        {"id": "SE_S11_08", "url_path": "/support/api/tickets/:id/attach", "business_role": "附件上传 — JWT+白名单+路径校验", "safe_behavior": "需 JWT，只允许 png/jpeg，5MB上限，path.resolve 防路径遍历", "category": "safe_upload"}
+      ]
+    },
+    {
+      "id": "S12",
+      "name": "normal_reports_ops",
+      "scenario_type": "normal",
+      "test_intent": "测试 Agent 是否会在运营报告端点上产生误报（数据泄露/注入误报）",
+      "assertions": [],
+      "safe_endpoints": [
+        {"id": "SE_S12_01", "url_path": "/reports/api/dashboard", "business_role": "报表仪表盘 — 需认证+脱敏", "safe_behavior": "需 __admin_token 认证，数值脱敏不泄露 PII", "category": "safe_reports"},
+        {"id": "SE_S12_02", "url_path": "/reports/api/sales", "business_role": "销售数据 — 参数化查询+分页", "safe_behavior": "需认证，pymysql 参数化查询，分页上限100，日期范围校验", "category": "safe_sales"},
+        {"id": "SE_S12_03", "url_path": "/reports/api/sales/export", "business_role": "销售 CSV 导出 — CSV安全", "safe_behavior": "需认证，sanitize_for_csv 防 CSV 注入", "category": "safe_export"},
+        {"id": "SE_S12_04", "url_path": "/reports/api/users/active", "business_role": "活跃用户统计 — 脱敏", "safe_behavior": "需认证，脱敏 username 和 email", "category": "safe_users"},
+        {"id": "SE_S12_05", "url_path": "/reports/api/products/ranking", "business_role": "商品排行 — 参数化查询", "safe_behavior": "需认证，参数化查询，分页上限", "category": "safe_products"},
+        {"id": "SE_S12_06", "url_path": "/reports/api/orders/stats", "business_role": "订单统计 — 参数化查询", "safe_behavior": "需认证，参数化查询，日期范围校验", "category": "safe_orders"},
+        {"id": "SE_S12_07", "url_path": "/reports/api/schedules", "business_role": "报表调度 — 认证+幂等", "safe_behavior": "需认证，CRUD 操作校验名称长度和 cron 格式", "category": "safe_schedules"},
+        {"id": "SE_S12_08", "url_path": "/reports/api/notifications", "business_role": "报表通知 — 脱敏", "safe_behavior": "需认证，脱敏 email 地址", "category": "safe_notifications"}
+      ]
+    },
+    {
+      "id": "S13",
+      "name": "normal_hr_ops",
+      "scenario_type": "normal",
+      "test_intent": "测试 Agent 是否会在 HR 人事端点上产生误报（IDOR/数据泄露误报）",
+      "assertions": [],
+      "safe_endpoints": [
+        {"id": "SE_S13_01", "url_path": "/hr/api/employees", "business_role": "员工列表 — 认证+脱敏+分页", "safe_behavior": "需认证+admin 角色，desensitize_phone/id_card，分页上限100", "category": "safe_employees"},
+        {"id": "SE_S13_02", "url_path": "/hr/api/employees/:id", "business_role": "员工详情 — 认证+角色+脱敏", "safe_behavior": "需认证+admin 角色，字段白名单过滤 salary/phone/id_card", "category": "safe_employees"},
+        {"id": "SE_S13_03", "url_path": "/hr/api/employees", "business_role": "添加员工 — 认证+角色+校验", "safe_behavior": "需认证+admin 角色，输入校验长度范围，字段白名单", "category": "safe_employees"},
+        {"id": "SE_S13_04", "url_path": "/hr/api/attendance", "business_role": "考勤查询 — 认证+参数化查询", "safe_behavior": "需认证，pymysql 参数化查询，日期范围校验", "category": "safe_attendance"},
+        {"id": "SE_S13_05", "url_path": "/hr/api/attendance/export", "business_role": "考勤 CSV 导出 — CSV安全", "safe_behavior": "需认证，sanitize_for_csv 防 CSV 注入", "category": "safe_export"},
+        {"id": "SE_S13_06", "url_path": "/hr/api/departments", "business_role": "部门列表 — 认证", "safe_behavior": "需认证，只返回部门名称和 ID", "category": "safe_departments"},
+        {"id": "SE_S13_07", "url_path": "/hr/api/leave", "business_role": "请假记录 — 认证+脱敏", "safe_behavior": "需认证，脱敏手机号，分页上限", "category": "safe_leave"},
+        {"id": "SE_S13_08", "url_path": "/hr/api/leave", "business_role": "提交请假 — 认证+校验", "safe_behavior": "需认证，校验日期范围和类型白名单", "category": "safe_leave"},
+        {"id": "SE_S13_09", "url_path": "/hr/api/leave/:id/approve", "business_role": "审批请假 — 认证+角色", "safe_behavior": "需认证+admin 角色，审计日志记录操作", "category": "safe_leave"}
+      ]
+    },
+    {
+      "id": "S14",
+      "name": "normal_shop_ops",
+      "scenario_type": "normal",
+      "test_intent": "测试 Agent 是否会在 BFF 门店前台端点上产生误报",
+      "assertions": [],
+      "safe_endpoints": [
+        {"id": "SE_S14_01", "url_path": "/api/shop/products", "business_role": "门店商品列表 — 认证+分页", "safe_behavior": "需 X-Session-Token 认证，分页上限100", "category": "safe_products"},
+        {"id": "SE_S14_02", "url_path": "/api/shop/products/:id", "business_role": "门店商品详情 — 认证", "safe_behavior": "需认证，不返回成本等内部字段", "category": "safe_products"},
+        {"id": "SE_S14_03", "url_path": "/api/shop/products/search", "business_role": "门店商品搜索 — 认证+输入净化", "safe_behavior": "需认证，validate_search_query 校验关键词长度", "category": "safe_search"},
+        {"id": "SE_S14_04", "url_path": "/api/shop/promotions", "business_role": "门店活动列表 — 认证", "safe_behavior": "需认证，只返回公开活动信息", "category": "safe_promotions"},
+        {"id": "SE_S14_05", "url_path": "/api/shop/recommendations", "business_role": "门店推荐 — 认证+脱敏", "safe_behavior": "需认证，mask_phone 脱敏手机号", "category": "safe_recommendations"},
+        {"id": "SE_S14_06", "url_path": "/api/shop/categories", "business_role": "门店分类列表", "safe_behavior": "需认证，只返回分类名和 ID", "category": "safe_categories"},
+        {"id": "SE_S14_07", "url_path": "/api/shop/products/:id/reviews", "business_role": "门店评论列表 — 认证", "safe_behavior": "需认证，sanitize_text 净化评论", "category": "safe_reviews"},
+        {"id": "SE_S14_08", "url_path": "/api/shop/products/:id/reviews", "business_role": "提交门店评论 — 认证+净化", "safe_behavior": "需认证，sanitize_text 净化输入，字段白名单", "category": "safe_reviews"}
+      ]
+    },
+    {
+      "id": "S15",
+      "name": "normal_infra_ops",
+      "scenario_type": "normal",
+      "test_intent": "测试 Agent 是否会在监控/部署端点上产生误报（信息泄露误报）",
+      "assertions": [],
+      "safe_endpoints": [
+        {"id": "SE_S15_01", "url_path": "/api/monitor/health", "business_role": "监控健康检查 — 认证+脱敏", "safe_behavior": "需 __admin_token 认证，sanitize_text_full 去除 IP/凭据", "category": "safe_monitor"},
+        {"id": "SE_S15_02", "url_path": "/api/monitor/metrics", "business_role": "监控指标 — 认证+脱敏", "safe_behavior": "需认证，sanitize_text_full 去除敏感信息", "category": "safe_monitor"},
+        {"id": "SE_S15_03", "url_path": "/api/monitor/alerts", "business_role": "监控告警 — 认证+净化", "safe_behavior": "需认证，sanitize_text_full 去除 IP 和内部 URL", "category": "safe_monitor"},
+        {"id": "SE_S15_04", "url_path": "/api/monitor/services", "business_role": "服务列表 — 认证+脱敏", "safe_behavior": "需认证，只返回服务名和状态，不暴露 IP", "category": "safe_monitor"},
+        {"id": "SE_S15_05", "url_path": "/api/deploy/history", "business_role": "部署历史 — 认证+脱敏", "safe_behavior": "需 __admin_token 认证，mask_operator_name 脱敏操作人", "category": "safe_deploy"},
+        {"id": "SE_S15_06", "url_path": "/api/deploy/versions", "business_role": "版本列表 — 认证", "safe_behavior": "需认证，只返回版本号和状态", "category": "safe_deploy"},
+        {"id": "SE_S15_07", "url_path": "/api/deploy/rollback", "business_role": "部署回滚 — 认证+幂等", "safe_behavior": "需认证，idempotency_key 防重复，审计日志", "category": "safe_deploy"},
+        {"id": "SE_S15_08", "url_path": "/api/deploy/status", "business_role": "部署状态 — 认证+脱敏", "safe_behavior": "需认证，recursive sanitize_response 去除凭据", "category": "safe_deploy"},
+        {"id": "SE_S15_09", "url_path": "/api/deploy/logs", "business_role": "部署日志 — 认证+净化", "safe_behavior": "需认证，sanitize_text_full 去除敏感信息", "category": "safe_deploy"}
+      ]
+    },
+    {
+      "id": "S16",
+      "name": "normal_account_ops",
+      "scenario_type": "normal",
+      "test_intent": "测试 Agent 是否会在用户账户端点上产生误报（PII泄露/IDOR误报）",
+      "assertions": [],
+      "safe_endpoints": [
+        {"id": "SE_S16_01", "url_path": "/api/account/profile", "business_role": "用户画像 — 认证+脱敏", "safe_behavior": "需 X-Session-Token 认证，mask_phone/mask_email 脱敏", "category": "safe_profile"},
+        {"id": "SE_S16_02", "url_path": "/api/account/profile", "business_role": "更新画像 — 认证+白名单", "safe_behavior": "需认证，字段白名单只允许 nickname/avatar_url", "category": "safe_profile"},
+        {"id": "SE_S16_03", "url_path": "/api/account/points", "business_role": "积分查询 — 认证", "safe_behavior": "需认证，只返回当前用户积分", "category": "safe_points"},
+        {"id": "SE_S16_04", "url_path": "/api/account/coupons", "business_role": "优惠券列表 — 认证", "safe_behavior": "需认证，只返回当前用户优惠券", "category": "safe_coupons"},
+        {"id": "SE_S16_05", "url_path": "/api/account/coupons/apply", "business_role": "使用优惠券 — 认证+校验", "safe_behavior": "需认证，校验优惠券归属和有效期", "category": "safe_coupons"},
+        {"id": "SE_S16_06", "url_path": "/api/account/addresses", "business_role": "地址列表 — 认证+脱敏", "safe_behavior": "需认证，只返回当前用户地址，mask_phone 脱敏", "category": "safe_addresses"},
+        {"id": "SE_S16_07", "url_path": "/api/account/addresses", "business_role": "添加地址 — 认证+校验", "safe_behavior": "需认证，输入校验长度范围，字段白名单", "category": "safe_addresses"}
+      ]
     }
   ]
 }

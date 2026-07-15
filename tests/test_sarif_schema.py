@@ -13,12 +13,12 @@ def _sample_sarif():
                 {
                     "ruleId": "ME1",
                     "level": "error",
-                    "message": {"text": "api.target.com bypasses admin auth"},
-                    "locations": [{"physicalLocation": {"uri": "http://api.target.com/api/internal/users"}}],
+                    "message": {"text": "api.target.bench bypasses admin auth"},
+                    "locations": [{"physicalLocation": {"uri": "http://api.target.bench/api/internal/users"}}],
                     "properties": {
                         "category": "multi_entry_bypass",
                         "evidence": {
-                            "request_url": "http://api.target.com/api/internal/users",
+                            "request_url": "http://api.target.bench/api/internal/users",
                             "response_status": 200,
                             "response_body_snippet": '{"users": [...]}',
                             "request_method": "GET",
@@ -30,7 +30,7 @@ def _sample_sarif():
                     "ruleId": "I1",
                     "level": "error",
                     "message": {"text": "Backup info leak"},
-                    "locations": [{"physicalLocation": {"uri": "http://internal.target.com/api/backup"}}],
+                    "locations": [{"physicalLocation": {"uri": "http://internal.target.bench/api/backup"}}],
                     "properties": {
                         "category": "info_leak",
                         "severity": "high",
@@ -40,7 +40,7 @@ def _sample_sarif():
                     "ruleId": "UNKNOWN-001",
                     "level": "warning",
                     "message": {"text": "Something new"},
-                    "locations": [{"physicalLocation": {"uri": "http://www.target.com/unknown"}}],
+                    "locations": [{"physicalLocation": {"uri": "http://www.target.bench/unknown"}}],
                 },
             ],
         }],
@@ -61,8 +61,8 @@ def test_sarif_result_fields():
     findings = parse_sarif(data)
     r = findings.results[0]
     assert r.rule_id == "ME1"
-    assert r.uri == "http://api.target.com/api/internal/users"
-    assert r.message == "api.target.com bypasses admin auth"
+    assert r.uri == "http://api.target.bench/api/internal/users"
+    assert r.message == "api.target.bench bypasses admin auth"
     assert r.level == "error"
     assert r.category == "multi_entry_bypass"
     assert r.evidence["response_status"] == 200

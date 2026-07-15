@@ -24,3 +24,10 @@ Thumbs.db
 # Runtime / output
 report.json
 findings.sarif.json
+
+# Node
+node_modules/
+
+# Design docs (work-in-progress, not published)
+docs/superpowers/specs/
+docs/superpowers/plans/

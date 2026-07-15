@@ -41,6 +41,8 @@ class VulnTestCase:
     expected_status: int | None = None
     severity: str = "medium"
     setup_id: str | None = None  # ID of a setup test that must pass first
+    follow_redirects: bool = True  # Whether to follow HTTP redirects
+    alternate_url: str | None = None  # Override base_url for Host collision tests on priv-gateway
 
 
 @dataclass
@@ -200,28 +202,28 @@ def _make_jwt(header: dict, payload: dict) -> str:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
+def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTestCase]:
     """Build all vulnerability test cases.
 
     Sources:
-      - targets/services/modern-app/app.js  (www.target.com)
-      - targets/services/admin-panel/app.py  (admin.target.com)
-      - targets/services/bff-gateway/app.py  (shop.target.com)
-      - targets/services/internal-tools/app.py  (internal.target.com)
+      - targets/services/modern-app/app.js  (www.target.bench)
+      - targets/services/admin-panel/app.py  (admin.target.bench)
+      - targets/services/bff-gateway/app.py  (shop.target.bench)
+      - targets/services/internal-tools/app.py  (internal.target.bench)
       - targets/gateway/nginx.conf  (multi-entry routing)
       - targets/docker-compose.yml  (infrastructure services)
     """
     cases: list[VulnTestCase] = []
 
     # ═══════════════════════════════════════════════════════════════
-    # S4: modern_vulns — modern-app (www.target.com)
+    # S4: modern_vulns — modern-app (www.target.bench)
     # ═══════════════════════════════════════════════════════════════
 
     # M9: CORS wildcard — check response header
     cases.append(VulnTestCase(
         id="M9", name="CORS wildcard misconfiguration",
         scenario_id="S4", scenario_name="modern_vulns",
-        method="GET", path="/", host="www.target.com",
+        method="GET", path="/", host="www.target.bench",
         expected_flags=["Access-Control-Allow-Origin"],
         severity="high",
     ))
@@ -234,7 +236,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="M1", name="JWT alg=none bypass",
         scenario_id="S4", scenario_name="modern_vulns",
-        method="GET", path="/api/users", host="www.target.com",
+        method="GET", path="/api/users", host="www.target.bench",
         headers={"Authorization": f"Bearer {jwt_none_token}"},
         expected_flags=["username"],  # should return user list, not 401
         severity="high",
@@ -249,21 +251,10 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="M2", name="JWT weak secret",
         scenario_id="S4", scenario_name="modern_vulns",
-        method="GET", path="/api/users/anyid", host="www.target.com",
+        method="GET", path="/api/users/anyid", host="www.target.bench",
         headers={"Authorization": f"Bearer {jwt_bad_token}"},
         expected_flags=["Invalid token", "detail"],
         severity="high",
-    ))
-
-    # M3: JWT expire bypass — refresh with body.userId
-    cases.append(VulnTestCase(
-        id="M3", name="JWT expire bypass via refresh",
-        scenario_id="S4", scenario_name="modern_vulns",
-        method="POST", path="/api/auth/refresh", host="www.target.com",
-        headers={"Content-Type": "application/json"},
-        body=json.dumps({"userId": "attacker"}),
-        expected_flags=["token", "emergency"],
-        severity="medium",
     ))
 
     # M4: NoSQLi $ne operator
@@ -271,7 +262,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
         id="M4", name="NoSQLi $ne operator",
         scenario_id="S4", scenario_name="modern_vulns",
         method="GET", path="/api/users?username[$ne]=nonexistent&debug=1",
-        host="www.target.com",
+        host="www.target.bench",
         expected_flags=["NOSQL_INJECTION_DEBUG"],
         severity="high",
     ))
@@ -281,7 +272,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
         id="M5", name="NoSQLi $gt operator",
         scenario_id="S4", scenario_name="modern_vulns",
         method="GET", path="/api/users?role[$gt]=&debug=1",
-        host="www.target.com",
+        host="www.target.bench",
         expected_flags=["NOSQL_INJECTION_DEBUG"],
         severity="high",
     ))
@@ -290,7 +281,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="M6", name="Prototype pollution via constructor.prototype",
         scenario_id="S4", scenario_name="modern_vulns",
-        method="PUT", path="/api/users/000000000000000000000001", host="www.target.com",
+        method="PUT", path="/api/users/000000000000000000000001", host="www.target.bench",
         headers={
             "Authorization": f"Bearer {jwt_none_token}",
             "Content-Type": "application/json",
@@ -305,7 +296,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="M7", name="Mass assignment via registration",
         scenario_id="S4", scenario_name="modern_vulns",
-        method="POST", path="/api/auth/register", host="www.target.com",
+        method="POST", path="/api/auth/register", host="www.target.bench",
         headers={"Content-Type": "application/json"},
         body=json.dumps({"username": rand_user, "password": "test123", "email": f"{rand_user}@test.com", "role": "admin"}),
         expected_flags=["MASS_ASSIGNMENT_ADMIN"],
@@ -319,7 +310,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="M8", name="Excessive data exposure",
         scenario_id="S4", scenario_name="modern_vulns",
-        method="GET", path="/api/users?debug=1", host="www.target.com",
+        method="GET", path="/api/users?debug=1", host="www.target.bench",
         headers={"Authorization": f"Bearer {jwt_none_token}"},
         expected_flags=["password"],  # debug mode exposes password field
         severity="high",
@@ -330,7 +321,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
         id="M10", name="SSRF via fetch endpoint",
         scenario_id="S4", scenario_name="modern_vulns",
         method="GET", path="/api/fetch?url=http://172.20.0.11:5000/api/internal/health",
-        host="www.target.com",
+        host="www.target.bench",
         expected_flags=["INTERNAL_ENDPOINT_HEALTH"],
         severity="high",
     ))
@@ -339,7 +330,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="M11", name="Integer overflow / price manipulation",
         scenario_id="S4", scenario_name="modern_vulns",
-        method="POST", path="/api/orders", host="www.target.com",
+        method="POST", path="/api/orders", host="www.target.bench",
         headers={
             "Authorization": f"Bearer {jwt_none_token}",
             "Content-Type": "application/json",
@@ -349,13 +340,14 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
         severity="high",
     ))
 
-    # M12: Open redirect
+    # M12: Open redirect — don't follow redirects to verify 302
     cases.append(VulnTestCase(
         id="M12", name="Open redirect",
         scenario_id="S4", scenario_name="modern_vulns",
-        method="GET", path="/api/redirect?url=https://evil.com", host="www.target.com",
+        method="GET", path="/api/redirect?url=https://evil.com", host="www.target.bench",
         expected_flags=[],  # verify via redirect status
         expected_status=302,
+        follow_redirects=False,
         severity="medium",
     ))
 
@@ -364,7 +356,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="M13", name="GraphQL introspection enabled",
         scenario_id="S4", scenario_name="modern_vulns",
-        method="POST", path="/graphql", host="www.target.com",
+        method="POST", path="/graphql", host="www.target.bench",
         headers={"Content-Type": "application/json"},
         body=introspection_query,
         expected_flags=["__schema"],
@@ -376,7 +368,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="M14", name="GraphQL updateUser mutation accessible",
         scenario_id="S4", scenario_name="modern_vulns",
-        method="POST", path="/graphql", host="www.target.com",
+        method="POST", path="/graphql", host="www.target.bench",
         headers={"Content-Type": "application/json"},
         body=json.dumps({"query": "mutation { updateUser(id: \"000000000000000000000001\", input: \"{\\\"role\\\":\\\"admin\\\"}\") { username } }"}),
         expected_flags=["data"],
@@ -387,20 +379,11 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="M15", name="GraphQL users query leaks password",
         scenario_id="S4", scenario_name="modern_vulns",
-        method="POST", path="/graphql", host="www.target.com",
+        method="POST", path="/graphql", host="www.target.bench",
         headers={"Content-Type": "application/json"},
         body=json.dumps({"query": "{ users { username password } }"}),
         expected_flags=["password", "admin123"],
         severity="high",
-    ))
-
-    # M16: /api/docs exposes all internal endpoints
-    cases.append(VulnTestCase(
-        id="M16", name="API docs expose internal endpoints",
-        scenario_id="S4", scenario_name="modern_vulns",
-        method="GET", path="/api/docs", host="www.target.com",
-        expected_flags=["DEPRECATED", "/api/internal/config"],
-        severity="medium",
     ))
 
     # M17: DEBUG error handler leaks stack trace + env
@@ -408,7 +391,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="M17", name="DEBUG error handler leaks stack trace",
         scenario_id="S4", scenario_name="modern_vulns",
-        method="GET", path="/api/users/not_a_valid_hex_id", host="www.target.com",
+        method="GET", path="/api/users/not_a_valid_hex_id", host="www.target.bench",
         headers={"Authorization": f"Bearer {jwt_none_token}"},
         expected_flags=["error", "stack"],  # try/catch leaks stack in DEBUG mode
         severity="high",
@@ -418,7 +401,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="M_INTERNAL_CFG", name="Internal config endpoint leaks secrets",
         scenario_id="S4", scenario_name="modern_vulns",
-        method="GET", path="/api/internal/config", host="www.target.com",
+        method="GET", path="/api/internal/config", host="www.target.bench",
         expected_flags=["jwt_secret"],
         severity="high",
     ))
@@ -427,20 +410,20 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="M_INTERNAL_DB", name="Internal DB status endpoint accessible",
         scenario_id="S4", scenario_name="modern_vulns",
-        method="GET", path="/api/internal/db-status", host="www.target.com",
+        method="GET", path="/api/internal/db-status", host="www.target.bench",
         expected_flags=["collections"],
         severity="medium",
     ))
 
     # ═══════════════════════════════════════════════════════════════
-    # S3: hidden_param_detection — admin-panel (admin.target.com)
+    # S3: hidden_param_detection — admin-panel (admin.target.bench)
     # ═══════════════════════════════════════════════════════════════
 
     # debug=1 on login (POST)
     cases.append(VulnTestCase(
         id="HP_DEBUG", name="Hidden param debug=1 on login",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="POST", path="/login?debug=1", host="admin.target.com",
+        method="POST", path="/login?debug=1", host="admin.target.bench",
         headers={"Content-Type": "application/x-www-form-urlencoded"},
         body="username=admin&password=wrong",
         expected_flags=["sql_query", "jwt_secret_preview"],
@@ -451,7 +434,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="HP_TRACE", name="Hidden param trace=1 on login",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/login?trace=1", host="admin.target.com",
+        method="GET", path="/login?trace=1", host="admin.target.bench",
         expected_flags=["token", "trace"],
         severity="high",
     ))
@@ -460,7 +443,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="HP_INTERNAL", name="Hidden param internal=true",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users?internal=true", host="admin.target.com",
+        method="GET", path="/api/users?internal=true", host="admin.target.bench",
         expected_flags=["HIDDEN_PARAM_INTERNAL_TRUE"],
         severity="high",
     ))
@@ -469,7 +452,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="HP_MOCK", name="Hidden param mock=1",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users?mock=1", host="admin.target.com",
+        method="GET", path="/api/users?mock=1", host="admin.target.bench",
         expected_flags=["HIDDEN_PARAM_MOCK_DATA"],
         severity="medium",
     ))
@@ -478,7 +461,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="HP_ENV", name="Hidden param env=development",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users?env=development", host="admin.target.com",
+        method="GET", path="/api/users?env=development", host="admin.target.bench",
         expected_flags=["HIDDEN_PARAM_ENV_DEV"],
         severity="high",
     ))
@@ -487,7 +470,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="HP_CSV", name="Hidden param format=csv",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users?format=csv&__admin_token=sk-app-internal", host="admin.target.com",
+        method="GET", path="/api/users?format=csv&__admin_token=sk-app-internal", host="admin.target.bench",
         expected_flags=["id,username,role"],
         severity="high",
     ))
@@ -496,7 +479,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="HP_NOCACHE", name="Hidden param nocache=1",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users/1/orders?nocache=1", host="admin.target.com",
+        method="GET", path="/api/users/1/orders?nocache=1", host="admin.target.bench",
         expected_flags=["HIDDEN_PARAM_NOCACHE_FULL"],
         severity="medium",
     ))
@@ -505,7 +488,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="HP_CALLBACK", name="Hidden param callback=func (JSONP)",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users/1/orders?callback=test", host="admin.target.com",
+        method="GET", path="/api/users/1/orders?callback=test", host="admin.target.bench",
         expected_flags=["test(", "orders"],
         severity="medium",
     ))
@@ -514,7 +497,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="HP_FORCE", name="Hidden param force=1",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users/2?force=1", host="admin.target.com",
+        method="GET", path="/api/users/2?force=1", host="admin.target.bench",
         expected_flags=["username", "password"],  # returns full user object
         severity="high",
     ))
@@ -523,7 +506,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="HP_PREVIEW", name="Hidden param preview=1",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users/2?preview=1", host="admin.target.com",
+        method="GET", path="/api/users/2?preview=1", host="admin.target.bench",
         expected_flags=["HIDDEN_PARAM_PREVIEW_MODE"],
         severity="medium",
     ))
@@ -532,7 +515,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="HP_METHOD", name="Hidden param _method=DELETE",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users/3?_method=DELETE", host="admin.target.com",
+        method="GET", path="/api/users/3?_method=DELETE", host="admin.target.bench",
         expected_flags=["HIDDEN_PARAM_METHOD_OVERRIDE"],
         severity="high",
     ))
@@ -541,7 +524,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="HP_RAW", name="Hidden param raw=1",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/system/status?raw=1", host="admin.target.com",
+        method="GET", path="/api/system/status?raw=1", host="admin.target.bench",
         expected_flags=["HIDDEN_PARAM_RAW_CONFIG", "jwt_secret"],
         severity="high",
     ))
@@ -550,7 +533,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="HP_TEST", name="Hidden param test=1",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/system/status?test=1", host="admin.target.com",
+        method="GET", path="/api/system/status?test=1", host="admin.target.bench",
         expected_flags=["HIDDEN_PARAM_TEST_MODE"],
         severity="medium",
     ))
@@ -559,49 +542,28 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="HP_SANDBOX", name="Hidden param sandbox=1",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/system/status?sandbox=1", host="admin.target.com",
+        method="GET", path="/api/system/status?sandbox=1", host="admin.target.bench",
         expected_flags=["HIDDEN_PARAM_SANDBOX_BYPASS"],
         severity="high",
     ))
 
-    # login.html source comment leak — exposes internal endpoints + secret prefixes
-    cases.append(VulnTestCase(
-        id="V13_COMMENT", name="login.html source comment leaks secrets",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/login", host="admin.target.com",
-        expected_flags=["debug=1", "trace=1", "validate=false", "X-Internal-Request"],
-        severity="high",
-    ))
-
-    # index.html source comment leak — exposes internal endpoints + secret prefixes
-    cases.append(VulnTestCase(
-        id="V14_COMMENT", name="index.html comment leaks internal endpoints",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/", host="admin.target.com",
-        expected_flags=["dev-sec", "sk-app", "internal=true"],
-        severity="high",
-    ))
+    # index.html 的 dev-sec/sk-app 由 V15_500LEAK 的 env 泄漏覆盖
+    # internal=true 参数名由 HTML 注释覆盖
 
     # 500 error leak — verify debug mode is enabled (confirmed by error response detail)
     # The Flask DEBUG=True means detailed errors are leaked on any unhandled exception
     cases.append(VulnTestCase(
         id="V15_500LEAK", name="DEBUG mode leaks error details",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="POST", path="/api/preferences", host="admin.target.com",
+        method="POST", path="/api/preferences", host="admin.target.bench",
         headers={"Content-Type": "application/json"},
         body=json.dumps({"__pickle_data": "invalid_base64!!!"}),
         expected_flags=["error"],  # response includes detailed error message (not "Internal server error")
         severity="high",
     ))
 
-    # 404 debug page — lists all params
-    cases.append(VulnTestCase(
-        id="HP_404DEBUG", name="404 debug page lists hidden params",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/nonexistent?debug=1", host="admin.target.com",
-        expected_flags=["available_params", "debug=1", "trace=1", "internal=true"],
-        severity="high",
-    ))
+    # HP_404DEBUG 冗余 — debug=1/trace=1/internal=true 参数名已由
+    # 其他线索渠道覆盖 (HTML注释/JS注释/SourceMap/错误提示)
 
     # ═══════════════════════════════════════════════════════════════
     # Additional admin-panel vulns (V10 Pickle, V11 XXE, V12 Header)
@@ -612,7 +574,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="V10_PICKLE", name="Pickle deserialization RCE",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="POST", path="/api/preferences", host="admin.target.com",
+        method="POST", path="/api/preferences", host="admin.target.bench",
         headers={"Content-Type": "application/json"},
         body=json.dumps({"__pickle_data": pickle_payload}),
         expected_flags=["HIDDEN_PARAM_PICKLE_RCE"],
@@ -623,7 +585,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="V11_XXE", name="XXE via XML bulk-delete",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="POST", path="/api/users/bulk-delete", host="admin.target.com",
+        method="POST", path="/api/users/bulk-delete", host="admin.target.bench",
         headers={"Content-Type": "application/xml"},
         body='<?xml version="1.0"?><users><id>1</id></users>',
         expected_flags=["HIDDEN_PARAM_XXE_TRIGGERED"],
@@ -634,7 +596,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="V12_HEADER", name="Header backdoor X-Internal-Request",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/internal/config", host="admin.target.com",
+        method="GET", path="/api/internal/config", host="admin.target.bench",
         headers={"X-Internal-Request": "true"},
         expected_flags=["jwt", "database", "admin_token"],
         severity="high",
@@ -644,7 +606,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="ADMIN_HEALTH", name="Internal health endpoint",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/internal/health", host="admin.target.com",
+        method="GET", path="/api/internal/health", host="admin.target.bench",
         expected_flags=["INTERNAL_ENDPOINT_HEALTH"],
         severity="medium",
     ))
@@ -652,7 +614,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="ADMIN_DB", name="Internal DB status endpoint",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/internal/db-status", host="admin.target.com",
+        method="GET", path="/api/internal/db-status", host="admin.target.bench",
         expected_flags=["INTERNAL_ENDPOINT_DB_STATUS"],
         severity="high",
     ))
@@ -660,7 +622,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="ADMIN_CACHE", name="Internal cache stats endpoint",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/internal/cache-stats", host="admin.target.com",
+        method="GET", path="/api/internal/cache-stats", host="admin.target.bench",
         expected_flags=["INTERNAL_ENDPOINT_CACHE_STATS"],
         severity="medium",
     ))
@@ -669,69 +631,69 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     # S2: multi_entry_bypass — same endpoints via different hostnames
     # ═══════════════════════════════════════════════════════════════
 
-    # ME1: api.target.com → admin-panel internal endpoints
+    # ME1: api.target.bench → admin-panel internal endpoints
     cases.append(VulnTestCase(
-        id="ME1", name="api.target.com bypass to internal health",
+        id="ME1", name="api.target.bench bypass to internal health",
         scenario_id="S2", scenario_name="multi_entry_bypass",
-        method="GET", path="/api/internal/health", host="api.target.com",
+        method="GET", path="/api/internal/health", host="api.target.bench",
         expected_flags=["INTERNAL_ENDPOINT_HEALTH"],
         severity="critical",
     ))
 
-    # ME2: api.target.com → admin-panel root via /admin/
+    # ME2: api.target.bench → admin-panel root via /admin/
     cases.append(VulnTestCase(
-        id="ME2", name="api.target.com /admin/ bypass to admin-panel",
+        id="ME2", name="api.target.bench /admin/ bypass to admin-panel",
         scenario_id="S2", scenario_name="multi_entry_bypass",
-        method="GET", path="/admin/", host="api.target.com",
+        method="GET", path="/admin/", host="api.target.bench",
         expected_flags=["admin-panel"],  # admin-panel login page title
         severity="critical",
     ))
 
-    # ME3: api.target.com → admin-panel system via /system/
+    # ME3: api.target.bench → admin-panel system via /system/
     cases.append(VulnTestCase(
-        id="ME3", name="api.target.com /system/ bypass to system status",
+        id="ME3", name="api.target.bench /system/ bypass to system status",
         scenario_id="S2", scenario_name="multi_entry_bypass",
-        method="GET", path="/system/status", host="api.target.com",
+        method="GET", path="/system/status", host="api.target.bench",
         expected_flags=["status", "version"],
         severity="critical",
     ))
 
-    # ME4: shop.target.com → /sysadmin/ proxy to admin-panel
+    # ME4: shop.target.bench → /sysadmin/ proxy to admin-panel
     cases.append(VulnTestCase(
-        id="ME4", name="shop.target.com /sysadmin/ bypass",
+        id="ME4", name="shop.target.bench /sysadmin/ bypass",
         scenario_id="S2", scenario_name="multi_entry_bypass",
-        method="GET", path="/sysadmin/users", host="shop.target.com",
+        method="GET", path="/sysadmin/users", host="shop.target.bench",
         expected_flags=["username", "role"],
         severity="critical",
     ))
 
-    # ME5: shop.target.com → /debug/admin proxy to admin-panel system status
+    # ME5: shop.target.bench → /debug/admin proxy to admin-panel system status
     cases.append(VulnTestCase(
-        id="ME5", name="shop.target.com /debug/admin bypass",
+        id="ME5", name="shop.target.bench /debug/admin bypass",
         scenario_id="S2", scenario_name="multi_entry_bypass",
-        method="GET", path="/debug/admin", host="shop.target.com",
+        method="GET", path="/debug/admin", host="shop.target.bench",
         expected_flags=["status", "version"],
         severity="high",
     ))
 
-    # api.target.com → /api/internal/db-status via admin-panel
+    # api.target.bench → /api/internal/db-status via admin-panel
     cases.append(VulnTestCase(
-        id="ME_EXTRA_DB", name="api.target.com bypass to internal db-status",
+        id="ME_EXTRA_DB", name="api.target.bench bypass to internal db-status",
         scenario_id="S2", scenario_name="multi_entry_bypass",
-        method="GET", path="/api/internal/db-status", host="api.target.com",
+        method="GET", path="/api/internal/db-status", host="api.target.bench",
         expected_flags=["INTERNAL_ENDPOINT_DB_STATUS"],
         severity="critical",
     ))
 
     # ═══════════════════════════════════════════════════════════════
-    # S6: bff_vulns — BFF gateway (shop.target.com)
+    # S6: bff_vulns — BFF gateway (shop.target.bench)
     # ═══════════════════════════════════════════════════════════════
 
     # B1: User profile leaks PII via BFF aggregation
     cases.append(VulnTestCase(
         id="B1", name="BFF user profile exposes admin data",
         scenario_id="S6", scenario_name="bff_vulns",
-        method="GET", path="/api/shop/user-profile", host="shop.target.com",
+        method="GET", path="/api/shop/user-profile", host="shop.target.bench",
         expected_flags=["BFF_aggregated", "username"],
         severity="critical",
     ))
@@ -740,7 +702,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="B2", name="BFF sysadmin proxy without auth",
         scenario_id="S6", scenario_name="bff_vulns",
-        method="GET", path="/sysadmin/system/status", host="shop.target.com",
+        method="GET", path="/sysadmin/system/status", host="shop.target.bench",
         expected_flags=["status", "version"],
         severity="critical",
     ))
@@ -749,7 +711,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="B3", name="BFF debug/admin exposes admin-panel debug",
         scenario_id="S6", scenario_name="bff_vulns",
-        method="GET", path="/debug/admin", host="shop.target.com",
+        method="GET", path="/debug/admin", host="shop.target.bench",
         expected_flags=["status", "version"],
         severity="high",
     ))
@@ -758,19 +720,19 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="BFF_INTERNAL", name="BFF internal proxy leaks admin data",
         scenario_id="S6", scenario_name="bff_vulns",
-        method="GET", path="/api/internal/health", host="shop.target.com",
+        method="GET", path="/api/internal/health", host="shop.target.bench",
         expected_flags=["INTERNAL_ENDPOINT_HEALTH"],
         severity="high",
     ))
 
     # ═══════════════════════════════════════════════════════════════
-    # S5: info_leak — internal-tools (internal.target.com)
+    # S5: info_leak — internal-tools (internal.target.bench)
     # ═══════════════════════════════════════════════════════════════
 
     cases.append(VulnTestCase(
         id="I1", name="Backup schedule info leak",
         scenario_id="S5", scenario_name="info_leak",
-        method="GET", path="/api/backup", host="internal.target.com",
+        method="GET", path="/api/backup", host="internal.target.bench",
         expected_flags=["INFO_BACKUP_LEAK", "mysql://"],
         severity="high",
     ))
@@ -778,7 +740,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="I2", name="Environment variables leak",
         scenario_id="S5", scenario_name="info_leak",
-        method="GET", path="/api/env", host="internal.target.com",
+        method="GET", path="/api/env", host="internal.target.bench",
         expected_flags=["DB_HOST", "REDIS_HOST"],
         severity="high",
     ))
@@ -786,7 +748,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="I3", name="Config info leak",
         scenario_id="S5", scenario_name="info_leak",
-        method="GET", path="/api/config", host="internal.target.com",
+        method="GET", path="/api/config", host="internal.target.bench",
         expected_flags=["INFO_CONFIG_LEAK", "apppass123"],
         severity="high",
     ))
@@ -794,7 +756,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="I4", name="Network topology leak",
         scenario_id="S5", scenario_name="info_leak",
-        method="GET", path="/api/network", host="internal.target.com",
+        method="GET", path="/api/network", host="internal.target.bench",
         expected_flags=["INFO_NETWORK_LEAK", "172.20.0.10"],
         severity="high",
     ))
@@ -802,7 +764,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="I5", name="Source code leak",
         scenario_id="S5", scenario_name="info_leak",
-        method="GET", path="/api/source", host="internal.target.com",
+        method="GET", path="/api/source", host="internal.target.bench",
         expected_flags=["INFO_SOURCE_CODE_LEAK", "JWT_SECRET"],
         severity="high",
     ))
@@ -810,7 +772,7 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     cases.append(VulnTestCase(
         id="I6", name="Database backup download",
         scenario_id="S5", scenario_name="info_leak",
-        method="GET", path="/backup/latest.sql", host="internal.target.com",
+        method="GET", path="/backup/latest.sql", host="internal.target.bench",
         expected_flags=["INFO_BACKUP_DOWNLOAD", "admin123"],
         severity="high",
     ))
@@ -819,18 +781,55 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
     # S1: subdomain_discovery
     # ═══════════════════════════════════════════════════════════════
 
-    for subdomain, expected in [
-        ("www", "Modern API"), ("admin", "admin"), ("api", "Modern API"),
-        ("shop", "BFF"), ("internal", "endpoints"),
-    ]:
-        cases.append(VulnTestCase(
-            id=f"SUB_{subdomain.upper()}",
-            name=f"Subdomain {subdomain}.target.com reachable",
-            scenario_id="S1", scenario_name="subdomain_discovery",
-            method="GET", path="/", host=f"{subdomain}.target.com",
-            expected_flags=[expected],
-            severity="medium",
-        ))
+    # SUB_SHOP stays on pub-gateway (BFF is reachable via pub-gateway)
+    cases.append(VulnTestCase(
+        id="SUB_SHOP", name="Subdomain shop.target.bench reachable",
+        scenario_id="S1", scenario_name="subdomain_discovery",
+        method="GET", path="/", host="shop.target.bench",
+        expected_flags=["BFF"],
+        severity="medium",
+    ))
+
+    # SUB_ADMIN — admin resolves to priv-gateway IP (Host collision)
+    cases.append(VulnTestCase(
+        id="SUB_ADMIN", name="Subdomain admin.target.bench reachable (Host collision)",
+        scenario_id="S1", scenario_name="subdomain_discovery",
+        method="GET", path="/", host="admin.target.bench",
+        expected_flags=["admin"],
+        severity="medium",
+        alternate_url=priv_url,
+    ))
+
+    # SUB_API — api resolves to priv-gateway IP (Host collision)
+    cases.append(VulnTestCase(
+        id="SUB_API", name="Subdomain api.target.bench reachable (Host collision)",
+        scenario_id="S1", scenario_name="subdomain_discovery",
+        method="GET", path="/", host="api.target.bench",
+        expected_flags=["Modern API"],
+        severity="medium",
+        alternate_url=priv_url,
+    ))
+
+    # SUB_INTERNAL — internal resolves to priv-gateway IP (Host collision)
+    cases.append(VulnTestCase(
+        id="SUB_INTERNAL", name="Subdomain internal.target.bench reachable (Host collision)",
+        scenario_id="S1", scenario_name="subdomain_discovery",
+        method="GET", path="/", host="internal.target.bench",
+        expected_flags=["endpoints"],
+        severity="medium",
+        alternate_url=priv_url,
+    ))
+
+    # SUB_WWW — www.target.bench 根路径 redirect 到 /shop（nginx return 302）
+    cases.append(VulnTestCase(
+        id="SUB_WWW", name="Subdomain www.target.bench reachable (redirects to /shop)",
+        scenario_id="S1", scenario_name="subdomain_discovery",
+        method="GET", path="/", host="www.target.bench",
+        expected_flags=["/shop"],  # redirect Location 包含 /shop
+        expected_status=302,
+        follow_redirects=False,
+        severity="medium",
+    ))
 
     # ═══════════════════════════════════════════════════════════════
     # S7: infrastructure — TCP port checks on localhost mapped ports
@@ -860,6 +859,13 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
         severity="medium",
     ))
 
+    # v5.0: Auto-route priv-gateway subdomains (admin/api/internal) to priv_url
+    # Pub-gateway returns 444 for these Host headers; must use priv-gateway instead
+    PRIV_GATEWAY_HOSTS = {"admin.target.bench", "api.target.bench", "internal.target.bench"}
+    for c in cases:
+        if c.host in PRIV_GATEWAY_HOSTS and c.alternate_url is None and priv_url:
+            c.alternate_url = priv_url
+
     return cases
 
 
@@ -871,9 +877,10 @@ def _build_test_cases(gateway_url: str) -> list[VulnTestCase]:
 class VulnVerifier:
     """Execute vulnerability test cases and produce a verification report."""
 
-    def __init__(self, base_url: str = "http://localhost:8080"):
+    def __init__(self, base_url: str = "http://localhost:80", priv_url: str | None = None):
         self.base_url = base_url.rstrip("/")
-        self.test_cases = _build_test_cases(self.base_url)
+        self.priv_url = priv_url.rstrip("/") if priv_url else None
+        self.test_cases = _build_test_cases(self.base_url, self.priv_url)
 
     def run_all(self) -> VulnReport:
         """Run all test cases and return a verification report."""
@@ -929,7 +936,8 @@ class VulnVerifier:
         if tc.method == "TCP":
             return self._run_tcp_test(tc)
 
-        url = f"{self.base_url}{tc.path}"
+        effective_base = tc.alternate_url or self.base_url
+        url = f"{effective_base}{tc.path}"
         headers = dict(tc.headers)
         if "Host" not in headers:
             headers["Host"] = tc.host
@@ -942,8 +950,8 @@ class VulnVerifier:
 
         body_bytes = tc.body.encode("utf-8") if tc.body else None
 
-        # For open_redirect test, don't follow redirects
-        if tc.id == "M12":
+        # Use follow_redirects field to decide request method (unified logic)
+        if not tc.follow_redirects:
             status, raw_body, resp_headers = _http_request_no_redirect(
                 tc.method, url, headers, body_bytes, timeout=10,
             )

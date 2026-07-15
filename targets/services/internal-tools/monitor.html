@@ -1,0 +1,253 @@
+<!-- SECURITY-REVIEWED: 2026-07-14 | RULES: v2.6.0-draft -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>监控面板 - Internal Tools</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1d1d1f; color: #f5f5f7; }
+    .header { background: #2d2d2f; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3d3d3f; }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .nav-links a { color: #2997ff; text-decoration: none; margin-left: 20px; font-size: 14px; }
+    .nav-links a:hover { color: #5ac8fa; }
+    .auth-bar { background: #2d2d2f; padding: 12px 24px; border-bottom: 1px solid #3d3d3f; }
+    .auth-bar label { font-size: 14px; margin-right: 8px; }
+    .auth-bar input { padding: 8px 12px; border: 1px solid #3d3d3f; border-radius: 6px; background: #3d3d3f; color: #f5f5f7; font-size: 14px; width: 300px; }
+    .auth-bar button { padding: 8px 16px; background: #2997ff; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; margin-left: 8px; }
+    .content { max-width: 980px; margin: 0 auto; padding: 24px; }
+    .section-title { font-size: 22px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid #3d3d3f; padding-bottom: 8px; }
+    .card { background: #2d2d2f; border-radius: 12px; padding: 20px; border: 1px solid #3d3d3f; margin-bottom: 20px; }
+    .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+    .health-item { background: #3d3d3f; border-radius: 8px; padding: 12px; text-align: center; }
+    .health-item .service-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .health-item .status-ok { color: #34c759; font-size: 13px; }
+    .health-item .status-error { color: #ff3b30; font-size: 13px; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .metric-card { background: #3d3d3f; border-radius: 8px; padding: 16px; }
+    .metric-card .metric-name { font-size: 13px; color: #8e8e93; margin-bottom: 4px; }
+    .metric-card .metric-value { font-size: 28px; font-weight: 700; }
+    .metric-card .metric-unit { font-size: 12px; color: #8e8e93; }
+    .service-summary { display: flex; gap: 24px; }
+    .summary-item { font-size: 16px; }
+    .summary-item .num { font-weight: 700; font-size: 24px; }
+    .summary-item .num.green { color: #34c759; }
+    .summary-item .num.red { color: #ff3b30; }
+    .alert-table { width: 100%; border-collapse: collapse; }
+    .alert-table th { font-size: 13px; color: #8e8e93; padding: 8px; text-align: left; border-bottom: 1px solid #3d3d3f; }
+    .alert-table td { font-size: 14px; padding: 8px; border-bottom: 1px solid #3d3d3f; }
+    .severity-high { color: #ff3b30; }
+    .severity-medium { color: #ff9500; }
+    .severity-low { color: #ffcc00; }
+    .pagination { display: flex; gap: 8px; margin-top: 12px; }
+    .pagination button { padding: 6px 12px; border: 1px solid #3d3d3f; border-radius: 4px; background: #3d3d3f; color: #f5f5f7; cursor: pointer; font-size: 13px; }
+    .message { padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
+    .message.success { background: #1a3a1a; color: #34c759; }
+    .message.error { background: #3a1a1a; color: #ff3b30; }
+    #messageArea { display: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>监控面板</h1>
+    <div class="nav-links">
+      <a href="/api/deploy">部署管理</a>
+      <a href="/">首页</a>
+    </div>
+  </div>
+
+  <div class="auth-bar">
+    <label for="adminToken">Admin Token:</label>
+    <input type="text" id="adminToken" placeholder="admin_session_XXXXXX" pattern="admin_session_[a-zA-Z0-9]{8,32}">
+    <button type="button" id="authBtn">认证</button>
+  </div>
+
+  <div class="content">
+    <div id="messageArea"></div>
+
+    <!-- 服务健康 -->
+    <h2 class="section-title">服务健康状态</h2>
+    <div id="healthGrid" class="health-grid card"></div>
+
+    <!-- 服务统计 -->
+    <h2 class="section-title">服务统计</h2>
+    <div id="serviceSummary" class="card">
+      <div class="service-summary">
+        <div class="summary-item"><span class="num" id="totalServices">-</span> 总服务</div>
+        <div class="summary-item"><span class="num green" id="healthyServices">-</span> 健康</div>
+        <div class="summary-item"><span class="num red" id="unhealthyServices">-</span> 异常</div>
+      </div>
+    </div>
+
+    <!-- 指标 -->
+    <h2 class="section-title">监控指标</h2>
+    <div id="metricsGrid" class="metrics-grid card"></div>
+
+    <!-- 历史指标 -->
+    <h2 class="section-title">指标历史</h2>
+    <div id="historyTable" class="card"></div>
+
+    <!-- 告警 -->
+    <h2 class="section-title">告警列表</h2>
+    <div id="alertsTable" class="card"></div>
+  </div>
+
+  <script>
+    // SECURITY-REVIEWED: 2026-07-14 | RULES: v2.6.0-draft
+    // No innerHTML or eval usage — all DOM updates use safe methods
+
+    var authToken = '';
+
+    function showMessage(text, type) {
+      var area = document.getElementById('messageArea');
+      area.style.display = 'block';
+      area.className = 'message ' + type;
+      area.textContent = text;
+    }
+
+    function createEl(tag, textContent) {
+      var el = document.createElement(tag);
+      if (textContent) { el.textContent = textContent; }
+      return el;
+    }
+
+    function authHeaders() {
+      return { 'Content-Type': 'application/json', '__admin_token': authToken };
+    }
+
+    // Auth button
+    document.getElementById('authBtn').addEventListener('click', function() {
+      authToken = document.getElementById('adminToken').value;
+      if (!authToken) { showMessage('请输入 Admin Token', 'error'); return; }
+      loadHealth();
+      loadServices();
+      loadMetrics();
+      loadHistory();
+      loadAlerts();
+    });
+
+    function loadHealth() {
+      fetch('/api/monitor/health', { headers: authHeaders() })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          if (data.error) { showMessage(data.error, 'error'); return; }
+          var grid = document.getElementById('healthGrid');
+          data.services.forEach(function(s) {
+            var item = createEl('div');
+            item.className = 'health-item';
+            var name = createEl('div', s.name);
+            name.className = 'service-name';
+            var status = createEl('div', s.status === 'ok' ? 'OK' : 'ERROR');
+            status.className = s.status === 'ok' ? 'status-ok' : 'status-error';
+            item.appendChild(name);
+            item.appendChild(status);
+            grid.appendChild(item);
+          });
+        })
+        .catch(function() { showMessage('加载健康状态失败', 'error'); });
+    }
+
+    function loadServices() {
+      fetch('/api/monitor/services', { headers: authHeaders() })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          if (data.error) { showMessage(data.error, 'error'); return; }
+          document.getElementById('totalServices').textContent = data.total_services;
+          document.getElementById('healthyServices').textContent = data.healthy;
+          document.getElementById('unhealthyServices').textContent = data.unhealthy;
+        })
+        .catch(function() {});
+    }
+
+    function loadMetrics() {
+      fetch('/api/monitor/metrics', { headers: authHeaders() })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          if (data.error) { showMessage(data.error, 'error'); return; }
+          var grid = document.getElementById('metricsGrid');
+          var m = data.metrics;
+          var items = [
+            ['CPU 使用率', m.cpu_usage, '%'],
+            ['内存使用率', m.memory_usage, '%'],
+            ['磁盘使用率', m.disk_usage, '%'],
+            ['请求总数', m.request_count, '次'],
+            ['错误率', m.error_rate * 100, '%'],
+            ['平均响应时间', m.response_time_avg, 'ms']
+          ];
+          items.forEach(function(item) {
+            var card = createEl('div');
+            card.className = 'metric-card';
+            var nameEl = createEl('div', item[0]);
+            nameEl.className = 'metric-name';
+            var valEl = createEl('div', item[1]);
+            valEl.className = 'metric-value';
+            var unitEl = createEl('div', item[2]);
+            unitEl.className = 'metric-unit';
+            card.appendChild(nameEl);
+            card.appendChild(valEl);
+            card.appendChild(unitEl);
+            grid.appendChild(card);
+          });
+        })
+        .catch(function() {});
+    }
+
+    function loadHistory() {
+      fetch('/api/monitor/history?page=1&size=8', { headers: authHeaders() })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          if (data.error) { showMessage(data.error, 'error'); return; }
+          var container = document.getElementById('historyTable');
+          var table = createEl('table');
+          table.className = 'alert-table';
+          var headerRow = createEl('tr');
+          ['时间', 'CPU%', '内存%', '磁盘%'].forEach(function(h) {
+            var th = createEl('th', h);
+            headerRow.appendChild(th);
+          });
+          table.appendChild(headerRow);
+          data.history.forEach(function(r) {
+            var row = createEl('tr');
+            row.appendChild(createEl('td', r.timestamp));
+            row.appendChild(createEl('td', r.cpu_usage));
+            row.appendChild(createEl('td', r.memory_usage));
+            row.appendChild(createEl('td', r.disk_usage));
+            table.appendChild(row);
+          });
+          container.appendChild(table);
+        })
+        .catch(function() {});
+    }
+
+    function loadAlerts() {
+      fetch('/api/monitor/alerts?page=1&size=20', { headers: authHeaders() })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          if (data.error) { showMessage(data.error, 'error'); return; }
+          var container = document.getElementById('alertsTable');
+          var table = createEl('table');
+          table.className = 'alert-table';
+          var headerRow = createEl('tr');
+          ['ID', '类型', '严重度', '描述', '时间'].forEach(function(h) {
+            headerRow.appendChild(createEl('th', h));
+          });
+          table.appendChild(headerRow);
+          data.alerts.forEach(function(a) {
+            var row = createEl('tr');
+            row.appendChild(createEl('td', a.id));
+            row.appendChild(createEl('td', a.alert_type));
+            var sev = createEl('td', a.severity);
+            sev.className = 'severity-' + a.severity;
+            row.appendChild(sev);
+            row.appendChild(createEl('td', a.description));
+            row.appendChild(createEl('td', a.timestamp));
+            table.appendChild(row);
+          });
+          container.appendChild(table);
+        })
+        .catch(function() {});
+    }
+  </script>
+</body>
+</html>

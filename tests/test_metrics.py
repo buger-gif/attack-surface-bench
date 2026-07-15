@@ -10,9 +10,9 @@ from secptest_benchmark.metrics.convergence import ConvergenceMetrics
 def test_discovery_metrics_subdomains():
     """DiscoveryMetrics: count discovered vs expected subdomains."""
     findings = [
-        SarifResult(rule_id="SUB-WWW", uri="http://www.target.com", category="subdomain"),
-        SarifResult(rule_id="SUB-API", uri="http://api.target.com", category="subdomain"),
-        SarifResult(rule_id="SUB-ADMIN", uri="http://admin.target.com", category="subdomain"),
+        SarifResult(rule_id="SUB-WWW", uri="http://www.target.bench", category="subdomain"),
+        SarifResult(rule_id="SUB-API", uri="http://api.target.bench", category="subdomain"),
+        SarifResult(rule_id="SUB-ADMIN", uri="http://admin.target.bench", category="subdomain"),
     ]
     expected = ["www", "admin", "api", "shop", "internal"]
     result = DiscoveryMetrics.calculate(findings, expected)
@@ -24,10 +24,10 @@ def test_discovery_metrics_subdomains():
 def test_multi_entry_metrics():
     """MultiEntryMetrics: count findings per entry category."""
     findings = [
-        SarifResult(rule_id="ME1", uri="http://api.target.com/internal", category="multi_entry_bypass"),
-        SarifResult(rule_id="ME2", uri="http://api.target.com/admin", category="multi_entry_bypass"),
-        SarifResult(rule_id="ME4", uri="http://shop.target.com/sysadmin", category="multi_entry_bypass"),
-        SarifResult(rule_id="I1", uri="http://internal.target.com/api/backup", category="info_leak"),
+        SarifResult(rule_id="ME1", uri="http://api.target.bench/internal", category="multi_entry_bypass"),
+        SarifResult(rule_id="ME2", uri="http://api.target.bench/admin", category="multi_entry_bypass"),
+        SarifResult(rule_id="ME4", uri="http://shop.target.bench/sysadmin", category="multi_entry_bypass"),
+        SarifResult(rule_id="I1", uri="http://internal.target.bench/api/backup", category="info_leak"),
     ]
     result = MultiEntryMetrics.calculate(findings)
     assert result["multi_entry_bypass"] == 3
@@ -37,9 +37,9 @@ def test_multi_entry_metrics():
 def test_hidden_param_metrics():
     """HiddenParamMetrics: count detected hidden params vs expected."""
     findings = [
-        SarifResult(rule_id="HP-DEBUG", uri="http://api.target.com/users?debug=1", category="hidden_param"),
-        SarifResult(rule_id="HP-TRACE", uri="http://api.target.com/login?trace=1", category="hidden_param"),
-        SarifResult(rule_id="HP-FORMAT", uri="http://api.target.com/export?format=csv", category="hidden_param"),
+        SarifResult(rule_id="HP-DEBUG", uri="http://api.target.bench/users?debug=1", category="hidden_param"),
+        SarifResult(rule_id="HP-TRACE", uri="http://api.target.bench/login?trace=1", category="hidden_param"),
+        SarifResult(rule_id="HP-FORMAT", uri="http://api.target.bench/export?format=csv", category="hidden_param"),
     ]
     expected_params = ["debug=1", "trace=1", "format=csv", "env=development", "mock=1"]
     result = HiddenParamMetrics.calculate(findings, expected_params)

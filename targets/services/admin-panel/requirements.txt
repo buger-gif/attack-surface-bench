@@ -1,3 +1,5 @@
+# SECURITY-REVIEWED: 2026-07-14 | RULES: v2.6.0-draft
 flask
 pyjwt
 requests
+pymysql

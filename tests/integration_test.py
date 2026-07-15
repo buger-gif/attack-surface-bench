@@ -1,5 +1,5 @@
-# SECURITY-REVIEWED: 2026-07-09 | RULES: v2.6.0-draft
-"""Integration test — full verify pipeline from SARIF to report."""
+# SECURITY-REVIEWED: 2026-07-14 | RULES: v2.6.0-draft
+"""Integration test — full verify pipeline from SARIF to report, including FP/TN."""
 import json
 from pathlib import Path
 
@@ -20,14 +20,13 @@ def test_full_verify_pipeline():
 
     # Report structure
     d = report.to_dict()
-    assert d["domain"] == "target.com"
-    assert len(d["scenarios"]) == 8
-    assert d["overall"]["total_discovered"] > 0
+    assert d["domain"] == "target.bench"
+    assert len(d["scenarios"]) == 16
 
     # At least some multi-entry findings
     s2 = next(s for s in d["scenarios"] if s["scenario_id"] == "S2")
     assert len(s2["discovered"]) >= 1
-    assert len(s2["missing"]) >= 1  # we won't find all 5
+    assert len(s2["missing"]) >= 1  # we won't find all 6
 
     # At least some info leak findings
     s5 = next(s for s in d["scenarios"] if s["scenario_id"] == "S5")
@@ -35,3 +34,15 @@ def test_full_verify_pipeline():
 
     # Extra discoveries present
     assert d["overall"]["extra_discoveries"] >= 0
+
+    # Normal scenarios should have 0 discovered and 0 missing (no assertions)
+    for s in d["scenarios"]:
+        if s["scenario_type"] == "normal":
+            assert len(s["discovered"]) == 0
+            assert len(s["missing"]) == 0
+
+    # Overall metrics should include FP-related fields
+    assert "total_false_positives" in d["overall"]
+    assert "total_true_negatives" in d["overall"]
+    assert "total_safe_endpoints" in d["overall"]
+    assert "reference_metrics" in d["overall"]
