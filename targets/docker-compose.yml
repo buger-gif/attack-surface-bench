@@ -129,6 +129,56 @@ services:
     environment:
       MONGO_INITDB_DATABASE: modern_app
 
+  # ===== Spring Boot 微服务 — 路径规范化差异绕过目标 =====
+
+  user-service:
+    build: ./services/spring-boot-service
+    hostname: user-service
+    environment:
+      - DB_URL=jdbc:mysql://user-db.internal:3306/user_db
+      - DB_USERNAME=user_service_app
+      - DB_PASSWORD=Us3rS3rv1ce#2024!
+      - JWT_SECRET=eyJhbGciOiJIUzI1NiJ9.user-service-jwt-secret-key-2024
+      - REDIS_HOST=redis-user.internal
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=RedisUser#2024!Secure
+    networks:
+      bm-net:
+        ipv4_address: 172.20.0.30
+
+  order-service:
+    build: ./services/spring-boot-service
+    hostname: order-service
+    environment:
+      - DB_URL=jdbc:mysql://order-db.internal:3306/order_db
+      - DB_USERNAME=order_service_app
+      - DB_PASSWORD=0rd3rS3rv1ce#2024!
+      - MQ_URL=amqp://mq.internal:5672
+      - MQ_USERNAME=order_mq_user
+      - MQ_PASSWORD=RabbitMQ#Order#2024!Secret
+    networks:
+      bm-net:
+        ipv4_address: 172.20.0.31
+
+  payment-service:
+    build: ./services/spring-boot-service
+    hostname: payment-service
+    environment:
+      - DB_URL=jdbc:mysql://payment-db.internal:3306/payment_db
+      - DB_USERNAME=payment_service_app
+      - DB_PASSWORD=P@ym3ntS3rv1ce#2024!
+      - STRIPE_API_KEY=sk_live_FAKE_BENCH_TARGET_51H9xKjL4dF3kP8mN7qR2sT5vW1yA6bC9eD0fG3hI4jK
+      - STRIPE_WEBHOOK_SECRET=whsec_FAKE_BENCH_8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d
+      - ALIPAY_APP_ID=FAKE_BENCH_2021001234567890
+      - ALIPAY_PRIVATE_KEY=FAKE_BENCH_RSA_PRIVATE_KEY_FOR_TARGET_TESTING_ONLY
+      - ALIPAY_PUBLIC_KEY=FAKE_BENCH_RSA_PUBLIC_KEY_FOR_TARGET_TESTING_ONLY
+      - WECHAT_PAY_MCH_ID=FAKE_BENCH_1234567890
+      - WECHAT_PAY_API_KEY=FAKE_BENCH_WeChatPayApiKey2024SecretKey!!
+      - WECHAT_PAY_API_V3_KEY=FAKE_BENCH_WeChatPayApiV3Key2024VerySecret
+    networks:
+      bm-net:
+        ipv4_address: 172.20.0.32
+
 networks:
   bm-net:
     ipam:

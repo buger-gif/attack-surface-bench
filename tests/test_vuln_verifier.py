@@ -16,10 +16,10 @@ class TestBuildTestCases:
     """Tests that test cases are properly constructed."""
 
     def test_all_scenarios_have_cases(self):
-        """Every scenario (S1-S7) should have at least one test case."""
+        """Every scenario (S1-S7, S17) should have at least one test case."""
         cases = _build_test_cases("http://localhost:8080")
         scenario_ids = {tc.scenario_id for tc in cases}
-        for sid in ["S1", "S2", "S3", "S4", "S5", "S6", "S7"]:
+        for sid in ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S17"]:
             assert sid in scenario_ids, f"Missing scenario {sid}"
 
     def test_all_test_ids_unique(self):
@@ -65,8 +65,14 @@ class TestBuildTestCases:
         """Critical severity tests should be present."""
         cases = _build_test_cases("http://localhost:8080")
         critical = [tc for tc in cases if tc.severity == "critical"]
-        # ME1-ME4, B1, B2, ME_EXTRA_DB
-        assert len(critical) >= 6, f"Expected >= 6 critical tests, got {len(critical)}"
+        # ME1-ME4, B1, B2, ME_EXTRA_DB, PN_TRAVERSAL_USER_ENV, PN_TRAVERSAL_ORDER_ENV, PN_TRAVERSAL_PAYMENT_ENV
+        assert len(critical) >= 9, f"Expected >= 9 critical tests, got {len(critical)}"
+
+    def test_s17_path_normalization_has_14_cases(self):
+        """S17 should have 14 path normalization bypass test cases."""
+        cases = _build_test_cases("http://localhost:8080")
+        s17_cases = [tc for tc in cases if tc.scenario_id == "S17"]
+        assert len(s17_cases) == 14, f"S17 has {len(s17_cases)} cases, expected 14"
 
 
 class TestHttpHelpers:
