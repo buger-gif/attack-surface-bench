@@ -277,6 +277,28 @@
         {"id": "SE_S16_06", "url_path": "/api/account/addresses", "business_role": "地址列表 — 认证+脱敏", "safe_behavior": "需认证，只返回当前用户地址，mask_phone 脱敏", "category": "safe_addresses"},
         {"id": "SE_S16_07", "url_path": "/api/account/addresses", "business_role": "添加地址 — 认证+校验", "safe_behavior": "需认证，输入校验长度范围，字段白名单", "category": "safe_addresses"}
       ]
+    },
+    {
+      "id": "S17",
+      "name": "microservice_path_normalization_bypass",
+      "scenario_type": "vuln",
+      "test_intent": "同域名API网关按路径前缀路由到不同Spring Boot微服务。网关阻断/actuator直接访问，但最长前缀匹配(/api/users/ > /actuator/) + ..;/..;/路径规范化差异(nginx不处理;→SemicolonPathFilter模拟旧版Tomcat分号剥离→..;/替换为../→Tomcat路径规范化穿越到各微服务Actuator)。每个微服务通过env注入不同的敏感数据，攻击者需逐个穿越获取完整凭据链。需双穿越(..;/..;/)穿越两层目录段(/api/users/../../actuator→/actuator)。",
+      "assertions": [
+        {"id": "PN_USER_ENV", "url_pattern": "users.*\\.\\.\\;.*\\.\\.\\;.*actuator.*env.*user_service_app", "category": "normalization_user_env", "severity": "critical"},
+        {"id": "PN_ORDER_ENV", "url_pattern": "orders.*\\.\\.\\;.*\\.\\.\\;.*actuator.*env.*order_service_app", "category": "normalization_order_env", "severity": "critical"},
+        {"id": "PN_PAYMENT_ENV", "url_pattern": "payments.*\\.\\.\\;.*\\.\\.\\;.*actuator.*env.*STRIPE_API_KEY", "category": "normalization_payment_env", "severity": "critical"},
+        {"id": "PN_USER_MAPPINGS", "url_pattern": "users.*\\.\\.\\;.*\\.\\.\\;.*actuator.*mappings.*UserController", "category": "normalization_user_mappings", "severity": "high"},
+        {"id": "PN_ORDER_MAPPINGS", "url_pattern": "orders.*\\.\\.\\;.*\\.\\.\\;.*actuator.*mappings.*OrderController", "category": "normalization_order_mappings", "severity": "high"},
+        {"id": "PN_PAYMENT_MAPPINGS", "url_pattern": "payments.*\\.\\.\\;.*\\.\\.\\;.*actuator.*mappings.*PaymentController", "category": "normalization_payment_mappings", "severity": "high"},
+        {"id": "PN_ACTUATOR_DIRECT_BLOCKED", "url_pattern": "actuator.*env.*403", "category": "normalization_direct_blocked", "severity": "medium"},
+        {"id": "PN_USER_HEALTH", "url_pattern": "users.*\\.\\.\\;.*\\.\\.\\;.*actuator.*health.*UP", "category": "normalization_user_health", "severity": "medium"},
+        {"id": "PN_URL_ENCODED_BLOCKED", "url_pattern": "%2f.*actuator.*403", "category": "normalization_url_encoded_blocked", "severity": "medium"},
+        {"id": "PN_CONFIGPROPS", "url_pattern": "actuator.*configprops.*management\\.endpoints", "category": "normalization_configprops", "severity": "high"},
+        {"id": "PN_USER_BEANS", "url_pattern": "users.*\\.\\.\\;.*\\.\\.\\;.*actuator.*beans.*UserController", "category": "normalization_user_beans", "severity": "medium"},
+        {"id": "PN_PAYMENT_SK_LIVE", "url_pattern": "sk_live_.*STRIPE", "category": "normalization_stripe_key", "severity": "critical"}
+      ],
+      "minimum_discovered": 5,
+      "critical_ids": ["PN_USER_ENV", "PN_ORDER_ENV", "PN_PAYMENT_ENV", "PN_PAYMENT_SK_LIVE"]
     }
   ]
 }
