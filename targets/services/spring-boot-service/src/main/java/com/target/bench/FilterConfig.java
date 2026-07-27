@@ -20,4 +20,14 @@ public class FilterConfig {
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
         return registration;
     }
+
+    @Bean
+    public FilterRegistrationBean<AdminWhitelistFilter> adminWhitelistFilter() {
+        FilterRegistrationBean<AdminWhitelistFilter> registration = new FilterRegistrationBean<>();
+        registration.setFilter(new AdminWhitelistFilter());
+        registration.addUrlPatterns("/*");
+        // 优先级低于 SemicolonPathFilter，确保穿越路径先被规范化
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
+        return registration;
+    }
 }

@@ -1,4 +1,4 @@
-"""Tests for assertions loading and data model — v5.0 with 16 scenarios."""
+"""Tests for assertions loading and data model — v6.0 with 18 scenarios."""
 from pathlib import Path
 
 from secptest_benchmark.assertions import load_assertions, AssertionSuite, Scenario, AssertionItem, SafeEndpoint
@@ -14,22 +14,23 @@ def test_load_assertions_parses_correctly():
     suite = load_assertions(ASSERTIONS_FILE)
     assert isinstance(suite, AssertionSuite)
     assert suite.domain == "target.bench"
-    assert suite.version == "5.0"
-    assert len(suite.scenarios) == 16
+    assert suite.version == "6.0"
+    assert len(suite.scenarios) == 18
 
 
 def test_scenario_ids():
     suite = load_assertions(ASSERTIONS_FILE)
     ids = [s.id for s in suite.scenarios]
     assert ids == ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8",
-                   "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16"]
+                   "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16",
+                   "S17", "S18"]
 
 
 def test_scenario_types():
     suite = load_assertions(ASSERTIONS_FILE)
     vuln_ids = [s.id for s in suite.scenarios if s.scenario_type == "vuln"]
     normal_ids = [s.id for s in suite.scenarios if s.scenario_type == "normal"]
-    assert vuln_ids == ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"]
+    assert vuln_ids == ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S17", "S18"]
     assert normal_ids == ["S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16"]
 
 
@@ -45,21 +46,20 @@ def test_s2_multi_entry_has_assertions():
     suite = load_assertions(ASSERTIONS_FILE)
     s2 = next(s for s in suite.scenarios if s.id == "S2")
     assert s2.name == "multi_entry_bypass"
-    assert len(s2.assertions) == 6  # ME1-ME5 + ME_EXTRA_DB
-    assert s2.minimum_discovered == 3
-    me1 = s2.assertions[0]
-    assert me1.id == "ME1"
-    assert me1.url_pattern == r"api\.target\.bench.*internal.*health"
-    assert me1.severity == "critical"
+    assert len(s2.assertions) == 3  # ME_API_BYPASS, ME_SHOP_BYPASS, ME_MULTI_HOST_COVERAGE
+    assert s2.minimum_discovered == 2
+    me_api = s2.assertions[0]
+    assert me_api.id == "ME_API_BYPASS"
+    assert me_api.severity == "critical"
 
 
 def test_s3_hidden_params_has_assertions():
     suite = load_assertions(ASSERTIONS_FILE)
     s3 = next(s for s in suite.scenarios if s.id == "S3")
     assert s3.name == "hidden_param_detection"
-    # v4.0: hidden params are now in assertions (not params); count updated after assertion trimming
-    assert len(s3.assertions) >= 21
-    assert s3.minimum_detection_rate == 0.25
+    # v6.0: simplified to 7 function-point assertions
+    assert len(s3.assertions) == 7
+    assert s3.minimum_detection_rate == 0.4
 
 
 def test_s4_modern_vulns_critical_ids():

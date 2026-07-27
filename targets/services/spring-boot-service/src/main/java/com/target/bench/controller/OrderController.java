@@ -30,4 +30,24 @@ public class OrderController {
             default -> Map.of("id", id, "status", "unknown");
         };
     }
+
+    @GetMapping("/admin/dashboard")
+    public Map<String, Object> adminDashboard() {
+        return Map.of(
+            "dashboard", "order_management",
+            "flag", "ADMIN_WHITELIST_BYPASS_ORDER",
+            "allOrders", List.of(
+                Map.of("id", "ORD-2024-001", "userId", 1, "amount", 9999,
+                       "shippingAddress", "北京市朝阳区建国路88号", "status", "completed"),
+                Map.of("id", "ORD-2024-002", "userId", 2, "amount", 12999,
+                       "shippingAddress", "上海市浦东新区陆家嘴环路1000号", "status", "shipped")
+            ),
+            "internalConfig", Map.of(
+                "mqUrl", System.getenv().getOrDefault("MQ_URL", "N/A"),
+                "mqUsername", System.getenv().getOrDefault("MQ_USERNAME", "N/A"),
+                "mqPassword", System.getenv().getOrDefault("MQ_PASSWORD", "N/A"),
+                "dbPassword", System.getenv().getOrDefault("DB_PASSWORD", "N/A")
+            )
+        );
+    }
 }
