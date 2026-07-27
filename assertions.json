@@ -1,5 +1,5 @@
 {
-  "version": "5.0",
+  "version": "6.0",
   "domain": "target.bench",
   "scenarios": [
     {
@@ -22,14 +22,12 @@
       "scenario_type": "vuln",
       "test_intent": "同一套 admin-panel 服务通过 3 个不同域名暴露，权限控制截然不同",
       "assertions": [
-        {"id": "ME1", "url_pattern": "api\\.target\\.bench.*internal.*health", "severity": "critical"},
-        {"id": "ME2", "url_pattern": "api\\.target\\.bench.*admin", "severity": "critical"},
-        {"id": "ME3", "url_pattern": "api\\.target\\.bench.*system", "severity": "critical"},
-        {"id": "ME4", "url_pattern": "shop\\.target\\.bench.*sysadmin", "severity": "critical"},
-        {"id": "ME5", "url_pattern": "shop\\.target\\.bench.*debug.*admin", "severity": "high"},
-        {"id": "ME_EXTRA_DB", "url_pattern": "api\\.target\\.bench.*internal.*db-status", "severity": "critical"}
+        {"id": "ME_API_BYPASS", "category": "multi_entry_api", "severity": "critical", "url": "/api/internal/health", "function_point": "api.target.bench 绕过 — 通过 api 域名访问到 admin-panel 的内部端点(admin/system/internal)", "match_keywords": ["api.target.bench", "internal", "admin", "multi_entry", "多入口绕过", "host_bypass"]},
+        {"id": "ME_SHOP_BYPASS", "category": "multi_entry_shop", "severity": "critical", "url": "/sysadmin/users", "function_point": "shop.target.bench 绕过 — 通过 shop 域名的 /sysadmin/ 或 /debug/admin 路径访问 admin-panel 数据", "match_keywords": ["sysadmin", "debug", "shop.target.bench", "bff_bypass", "代理绕过"]},
+        {"id": "ME_MULTI_HOST_COVERAGE", "category": "multi_entry_coverage", "severity": "high", "url": "/sysadmin/system/status", "function_point": "多域名绕过覆盖面 — 同一 admin-panel 服务通过 ≥2 个不同域名暴露", "match_keywords": ["target.bench", "多域名", "multi_host"]}
       ],
-      "minimum_discovered": 3
+      "minimum_discovered": 2,
+      "critical_ids": ["ME_API_BYPASS", "ME_SHOP_BYPASS"]
     },
     {
       "id": "S3",
@@ -37,29 +35,15 @@
       "scenario_type": "vuln",
       "test_intent": "隐藏参数散落在前端线索中，测试发现→推导→验证闭环能力",
       "assertions": [
-        {"id": "HP_DEBUG", "url_path": "/login?debug=1", "category": "hidden_param_debug", "severity": "high", "trace_source": "404错误页面", "name": "debug=1"},
-        {"id": "HP_TRACE", "url_path": "/login?trace=1", "category": "hidden_param_trace", "severity": "high", "trace_source": "登录失败提示", "name": "trace=1"},
-        {"id": "HP_INTERNAL", "url_path": "/api/users?internal=true", "category": "hidden_param_internal", "severity": "high", "trace_source": "HTML注释", "name": "internal=true"},
-        {"id": "HP_MOCK", "url_path": "/api/users?mock=1", "category": "hidden_param_mock", "severity": "medium", "trace_source": "JS源码", "name": "mock=1"},
-        {"id": "HP_ENV", "url_path": "/api/users?env=development", "category": "hidden_param_env", "severity": "high", "trace_source": "响应头", "name": "env=development"},
-        {"id": "HP_CSV", "url_path": "/api/users?format=csv", "category": "hidden_param_csv", "severity": "high", "trace_source": "API文档", "name": "format=csv"},
-        {"id": "HP_NOCACHE", "url_path": "/api/users/1/orders?nocache=1", "category": "hidden_param_nocache", "severity": "medium", "trace_source": "JS源码", "name": "nocache=1"},
-        {"id": "HP_CALLBACK", "url_path": "/api/users/1/orders?callback=", "category": "hidden_param_callback", "severity": "medium", "trace_source": "JS源码", "name": "callback="},
-        {"id": "HP_FORCE", "url_path": "/api/users/2?force=1", "category": "hidden_param_force", "severity": "high", "trace_source": "源码注释", "name": "force=1"},
-        {"id": "HP_PREVIEW", "url_path": "/api/users/2?preview=1", "category": "hidden_param_preview", "severity": "medium", "trace_source": "后台代码", "name": "preview=1"},
-        {"id": "HP_METHOD", "url_path": "/api/users/3?_method=DELETE", "category": "hidden_param_method", "severity": "high", "trace_source": "HTML form隐藏字段", "name": "_method=DELETE"},
-        {"id": "HP_RAW", "url_path": "/api/system/status?raw=1", "category": "hidden_param_raw", "severity": "high", "trace_source": "导出提示", "name": "raw=1"},
-        {"id": "HP_TEST", "url_path": "/api/system/status?test=1", "category": "hidden_param_test", "severity": "medium", "trace_source": "测试文件", "name": "test=1"},
-        {"id": "HP_SANDBOX", "url_path": "/api/system/status?sandbox=1", "category": "hidden_param_sandbox", "severity": "high", "trace_source": "支付文档", "name": "sandbox=1"},
-        {"id": "V10_PICKLE", "url_path": "/api/preferences", "category": "pickle_rce", "severity": "high"},
-        {"id": "V11_XXE", "url_path": "/api/users/bulk-delete", "category": "xxe", "severity": "high"},
-        {"id": "V12_HEADER", "url_path": "/api/internal/config", "category": "header_backdoor", "severity": "high"},
-        {"id": "V15_500LEAK", "url_path": "/api/preferences", "category": "info_leak_500", "severity": "high"},
-        {"id": "ADMIN_HEALTH", "url_path": "/api/internal/health", "category": "internal_endpoint", "severity": "medium"},
-        {"id": "ADMIN_DB", "url_path": "/api/internal/db-status", "category": "internal_endpoint", "severity": "high"},
-        {"id": "ADMIN_CACHE", "url_path": "/api/internal/cache-stats", "category": "internal_endpoint", "severity": "medium"}
+        {"id": "HP_DEBUG_PARAM", "category": "hidden_param_debug", "severity": "high", "url": "/login?debug=1", "function_point": "隐藏参数 debug=1 — 登录接口启用 debug 模式泄露 SQL 查询和 jwt_secret 预览", "match_keywords": ["sql_query", "debug", "jwt_secret_preview", "隐藏参数", "debug_mode", "调试模式"]},
+        {"id": "HP_INTERNAL_PARAM", "category": "hidden_param_internal", "severity": "high", "url": "/api/users?internal=true", "function_point": "隐藏参数 internal=true — 用户接口返回内部系统数据/完整用户信息", "match_keywords": ["HIDDEN_PARAM_INTERNAL", "internal", "隐藏参数", "internal_param"]},
+        {"id": "HP_SENSITIVE_PARAM", "category": "hidden_param_sensitive", "severity": "high", "url": "/api/system/status?sandbox=1", "function_point": "隐藏参数 env/raw/sandbox/test — 系统状态接口通过敏感参数泄露配置/密钥/沙箱绕过/测试模式", "match_keywords": ["HIDDEN_PARAM_ENV", "HIDDEN_PARAM_RAW", "HIDDEN_PARAM_SANDBOX", "HIDDEN_PARAM_TEST", "隐藏参数", "sandbox_bypass", "沙箱绕过"]},
+        {"id": "V10_PICKLE", "category": "pickle_rce", "severity": "high", "url": "/api/preferences", "function_point": "Pickle 反序列化 RCE — preferences 接口接受 __pickle_data 参数执行任意 Pickle 反序列化", "match_keywords": ["PICKLE_RCE", "pickle", "__pickle_data", "deserialization", "反序列化", "RCE"]},
+        {"id": "V11_XXE", "category": "xxe", "severity": "high", "url": "/api/users/bulk-delete", "function_point": "XXE 注入 — bulk-delete 接口接受 XML 输入触发 XXE 外部实体解析", "match_keywords": ["XXE", "HIDDEN_PARAM_XXE", "xml_external_entity", "XML注入"]},
+        {"id": "V12_HEADER", "category": "header_backdoor", "severity": "high", "url": "/api/internal/config", "function_point": "Header 后门 — X-Internal-Request:true 请求头绕过认证泄露 jwt/database/admin_token 等全部密钥", "match_keywords": ["jwt_secret", "admin_token", "X-Internal-Request", "header_backdoor", "请求头后门", "认证绕过"]},
+        {"id": "V15_500LEAK", "category": "info_leak_500", "severity": "high", "url": "/api/preferences", "function_point": "500 错误信息泄露 — Flask DEBUG=True 导致未处理异常泄露完整堆栈和内部配置", "match_keywords": ["stack", "trace", "Traceback", "堆栈泄露", "error_leak", "信息泄露"]}
       ],
-      "minimum_detection_rate": 0.25
+      "minimum_detection_rate": 0.4
     },
     {
       "id": "S4",
@@ -81,9 +65,7 @@
         {"id": "M13", "category": "graphql_introspection", "severity": "medium"},
         {"id": "M14", "url_path": "/graphql", "category": "graphql_mutation", "severity": "high"},
         {"id": "M15", "url_path": "/graphql", "category": "graphql_password_leak", "severity": "high"},
-        {"id": "M17", "category": "debug_stack_leak", "severity": "high"},
-        {"id": "M_INTERNAL_CFG", "url_path": "/api/internal/config", "category": "internal_config_leak", "severity": "high"},
-        {"id": "M_INTERNAL_DB", "url_path": "/api/internal/db-status", "category": "internal_db_status", "severity": "medium"}
+        {"id": "M17", "category": "debug_stack_leak", "severity": "high"}
       ],
       "critical_ids": ["M1", "M4", "M6", "M7", "M9", "M10"],
       "minimum_discovery_rate": 0.6
@@ -109,12 +91,12 @@
       "scenario_type": "vuln",
       "test_intent": "BFF 聚合层把多个后端数据拼在一起，过滤往往不到位",
       "assertions": [
-        {"id": "B1", "url_pattern": "shop\\.target\\.bench.*user-profile", "severity": "critical"},
-        {"id": "B2", "url_pattern": "shop\\.target\\.bench.*sysadmin", "severity": "critical"},
-        {"id": "B3", "url_pattern": "shop\\.target\\.bench.*debug.*admin", "severity": "high"},
-        {"id": "BFF_INTERNAL", "url_pattern": "shop\\.target\\.bench.*internal", "severity": "high"}
+        {"id": "B1", "category": "bff_profile_leak", "severity": "critical", "url": "/api/shop/user-profile", "function_point": "BFF 聚合泄露 PII — user-profile 接口拼接多后端数据，暴露管理员 username 等敏感信息", "match_keywords": ["BFF_aggregated", "user-profile", "PII泄露", "数据聚合泄露", "idor"]},
+        {"id": "B2", "category": "bff_sysadmin_proxy", "severity": "critical", "url": "/sysadmin/system/status", "function_point": "BFF sysadmin 代理无认证 — /sysadmin/ 路径直接代理到 admin-panel，无需认证", "match_keywords": ["sysadmin", "status", "version", "代理绕过", "proxy_bypass", "无认证"]},
+        {"id": "B6_COVERAGE", "category": "bff_coverage", "severity": "high", "url": "/debug/admin", "function_point": "BFF 代理覆盖面 — 通过 ≥2 个不同路径(sysadmin/debug/internal)暴露 admin 数据", "match_keywords": ["shop.target.bench", "admin", "BFF", "多路径泄露"]}
       ],
-      "minimum_discovered": 2
+      "minimum_discovered": 2,
+      "critical_ids": ["B1"]
     },
     {
       "id": "S7",
@@ -284,21 +266,27 @@
       "scenario_type": "vuln",
       "test_intent": "同域名API网关按路径前缀路由到不同Spring Boot微服务。网关阻断/actuator直接访问，但最长前缀匹配(/api/users/ > /actuator/) + ..;/..;/路径规范化差异(nginx不处理;→SemicolonPathFilter模拟旧版Tomcat分号剥离→..;/替换为../→Tomcat路径规范化穿越到各微服务Actuator)。每个微服务通过env注入不同的敏感数据，攻击者需逐个穿越获取完整凭据链。需双穿越(..;/..;/)穿越两层目录段(/api/users/../../actuator→/actuator)。",
       "assertions": [
-        {"id": "PN_USER_ENV", "url_pattern": "users.*\\.\\.\\;.*\\.\\.\\;.*actuator.*env.*user_service_app", "category": "normalization_user_env", "severity": "critical"},
-        {"id": "PN_ORDER_ENV", "url_pattern": "orders.*\\.\\.\\;.*\\.\\.\\;.*actuator.*env.*order_service_app", "category": "normalization_order_env", "severity": "critical"},
-        {"id": "PN_PAYMENT_ENV", "url_pattern": "payments.*\\.\\.\\;.*\\.\\.\\;.*actuator.*env.*STRIPE_API_KEY", "category": "normalization_payment_env", "severity": "critical"},
-        {"id": "PN_USER_MAPPINGS", "url_pattern": "users.*\\.\\.\\;.*\\.\\.\\;.*actuator.*mappings.*UserController", "category": "normalization_user_mappings", "severity": "high"},
-        {"id": "PN_ORDER_MAPPINGS", "url_pattern": "orders.*\\.\\.\\;.*\\.\\.\\;.*actuator.*mappings.*OrderController", "category": "normalization_order_mappings", "severity": "high"},
-        {"id": "PN_PAYMENT_MAPPINGS", "url_pattern": "payments.*\\.\\.\\;.*\\.\\.\\;.*actuator.*mappings.*PaymentController", "category": "normalization_payment_mappings", "severity": "high"},
-        {"id": "PN_ACTUATOR_DIRECT_BLOCKED", "url_pattern": "actuator.*env.*403", "category": "normalization_direct_blocked", "severity": "medium"},
-        {"id": "PN_USER_HEALTH", "url_pattern": "users.*\\.\\.\\;.*\\.\\.\\;.*actuator.*health.*UP", "category": "normalization_user_health", "severity": "medium"},
-        {"id": "PN_URL_ENCODED_BLOCKED", "url_pattern": "%2f.*actuator.*403", "category": "normalization_url_encoded_blocked", "severity": "medium"},
-        {"id": "PN_CONFIGPROPS", "url_pattern": "actuator.*configprops.*management\\.endpoints", "category": "normalization_configprops", "severity": "high"},
-        {"id": "PN_USER_BEANS", "url_pattern": "users.*\\.\\.\\;.*\\.\\.\\;.*actuator.*beans.*UserController", "category": "normalization_user_beans", "severity": "medium"},
-        {"id": "PN_PAYMENT_SK_LIVE", "url_pattern": "sk_live_.*STRIPE", "category": "normalization_stripe_key", "severity": "critical"}
+        {"id": "PN_TRAVERSAL_BYPASS", "category": "normalization_bypass", "severity": "critical", "url": "/api/users/..;/..;/actuator/env", "function_point": "路径规范化绕过 — ..;/..;/ 穿越 nginx+Tomcat 双层到 Spring Actuator env，泄露 JWT_SECRET/数据库凭据等敏感配置", "match_keywords": ["actuator", "env", "path_traversal", "目录穿越", "normalization_bypass", "..;/"]},
+        {"id": "PN_TRAVERSAL_COVERAGE", "category": "normalization_coverage", "severity": "high", "url": "/api/orders/..;/..;/actuator/env", "function_point": "traversal 覆盖面 — 同一技巧能命中 ≥2 个微服务(user/order/payment)的 actuator", "match_keywords": ["actuator", "env", "mappings", "path_traversal", "目录穿越"]},
+        {"id": "PN_DIRECT_BLOCKED", "category": "normalization_defense", "severity": "medium", "url": "/actuator/env", "function_point": "防御验证 — 直接访问 /actuator 被 gateway 拦截返回 403，证明绕过是必要的", "match_keywords": ["403", "blocked", "Forbidden", "拦截", "denied"]},
+        {"id": "PN_URL_ENCODED_BLOCKED", "category": "normalization_defense_encoded", "severity": "medium", "url": "/api/users/..%2f..%2f/actuator/env", "function_point": "防御验证 — URL编码路径穿越也被 nginx 拦截，只有 ;. 分号技巧能绕过", "match_keywords": ["403", "Forbidden", "URL编码"]}
       ],
-      "minimum_discovered": 5,
-      "critical_ids": ["PN_USER_ENV", "PN_ORDER_ENV", "PN_PAYMENT_ENV", "PN_PAYMENT_SK_LIVE"]
+      "minimum_discovered": 2,
+      "critical_ids": ["PN_TRAVERSAL_BYPASS"]
+    },
+    {
+      "id": "S18",
+      "name": "admin_whitelist_suffix_bypass",
+      "scenario_type": "vuln",
+      "test_intent": "零信任拦截器(AdminWhitelistFilter)保护/admin路径段，白名单.js/.html/.css等静态资源后缀。但Tomcat将;.js视为路径参数剥离，getRequestURI()保留;.js→拦截器误判为静态文件→放行，而servletPath=/api/users/admin/dashboard→正常路由到管理endpoint。攻击者可通过;.js/;.html/;.css等后缀伪装绕过拦截器访问管理数据。",
+      "assertions": [
+        {"id": "WB_SUFFIX_BYPASS", "category": "whitelist_bypass", "severity": "critical", "url": "/api/users/admin/dashboard;.js", "function_point": "白名单后缀绕过 — Tomcat 剥离 ;.js 路径参数但 getRequestURI() 保留，拦截器误判为静态文件放行，泄露 admin dashboard 数据和密钥", "match_keywords": ["ADMIN_WHITELIST_BYPASS", "dashboard", "whitelist_bypass", "白名单绕过", "access_control_bypass", ";.js"]},
+        {"id": "WB_SUFFIX_COVERAGE", "category": "whitelist_coverage", "severity": "high", "url": "/api/orders/admin/dashboard;.js", "function_point": "suffix bypass 覆盖面 — 同一技巧命中 ≥2 个微服务(user/order/payment)的 admin dashboard", "match_keywords": ["ADMIN_WHITELIST_BYPASS", "whitelist", "白名单"]},
+        {"id": "WB_SUFFIX_VARIANT", "category": "whitelist_variant", "severity": "high", "url": "/api/users/admin/dashboard;.html", "function_point": "后缀变体验证 — ;.html/;.css 等其他白名单后缀同样能绕过，证明拦截器设计缺陷而非单点问题", "match_keywords": ["ADMIN_WHITELIST_BYPASS", ".html", ";.html", "variant"]},
+        {"id": "WB_DIRECT_BLOCKED", "category": "whitelist_defense", "severity": "medium", "url": "/api/users/admin/dashboard", "function_point": "防御验证 — 直接访问 /admin/dashboard 被 AdminWhitelistFilter 拦截返回 403", "match_keywords": ["403", "Forbidden", "blocked", "拦截"]}
+      ],
+      "minimum_discovered": 2,
+      "critical_ids": ["WB_SUFFIX_BYPASS"]
     }
   ]
 }

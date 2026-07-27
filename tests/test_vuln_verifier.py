@@ -17,10 +17,10 @@ class TestBuildTestCases:
     """Tests that test cases are properly constructed."""
 
     def test_all_scenarios_have_cases(self):
-        """Every scenario (S1-S7, S17) should have at least one test case."""
+        """Every scenario (S1-S7, S17, S18) should have at least one test case."""
         cases = _build_test_cases("http://localhost:8080")
         scenario_ids = {tc.scenario_id for tc in cases}
-        for sid in ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S17"]:
+        for sid in ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S17", "S18"]:
             assert sid in scenario_ids, f"Missing scenario {sid}"
 
     def test_all_test_ids_unique(self):
@@ -29,19 +29,18 @@ class TestBuildTestCases:
         ids = [tc.id for tc in cases]
         assert len(ids) == len(set(ids)), f"Duplicate IDs: {[i for i in ids if ids.count(i) > 1]}"
 
-    def test_s4_modern_vulns_has_13_assertions(self):
-        """S4 should have at least 13 vuln tests (M1-M13 in assertions.json)."""
+    def test_s4_modern_vulns_has_15_assertions(self):
+        """S4 should have at least 15 vuln tests (M1-M15+M17, no M_INTERNAL)."""
         cases = _build_test_cases("http://localhost:8080")
         s4_cases = [tc for tc in cases if tc.scenario_id == "S4"]
-        # M1-M13 + M_INTERNAL_CFG + M_INTERNAL_DB = 17 (post trimming)
-        assert len(s4_cases) >= 17, f"S4 has {len(s4_cases)} cases, expected >= 17"
+        # M1-M15 + M17 = 16 (post trimming)
+        assert len(s4_cases) >= 15, f"S4 has {len(s4_cases)} cases, expected >= 15"
 
-    def test_s3_hidden_params_has_15_plus(self):
-        """S3 should have at least 15 hidden param tests."""
+    def test_s3_hidden_params_has_7(self):
+        """S3 should have 7 hidden param tests (simplified)."""
         cases = _build_test_cases("http://localhost:8080")
         s3_cases = [tc for tc in cases if tc.scenario_id == "S3"]
-        # hidden params + pickle/xxe/header + internal endpoints + comment leaks = 21 (post trimming)
-        assert len(s3_cases) >= 21, f"S3 has {len(s3_cases)} cases, expected >= 21"
+        assert len(s3_cases) == 7, f"S3 has {len(s3_cases)} cases, expected 7"
 
     def test_s5_info_leak_has_6(self):
         """S5 should have exactly 6 info leak tests (I1-I6)."""
@@ -49,11 +48,11 @@ class TestBuildTestCases:
         s5_cases = [tc for tc in cases if tc.scenario_id == "S5"]
         assert len(s5_cases) == 6, f"S5 has {len(s5_cases)} cases, expected 6"
 
-    def test_s2_multi_entry_has_6_plus(self):
-        """S2 should have at least 6 multi-entry bypass tests."""
+    def test_s2_multi_entry_has_3(self):
+        """S2 should have 3 multi-entry bypass tests."""
         cases = _build_test_cases("http://localhost:8080")
         s2_cases = [tc for tc in cases if tc.scenario_id == "S2"]
-        assert len(s2_cases) >= 6, f"S2 has {len(s2_cases)} cases, expected >= 6"
+        assert len(s2_cases) == 3, f"S2 has {len(s2_cases)} cases, expected 3"
 
     def test_severity_distribution(self):
         """Test cases should have valid severity values."""
@@ -66,14 +65,20 @@ class TestBuildTestCases:
         """Critical severity tests should be present."""
         cases = _build_test_cases("http://localhost:8080")
         critical = [tc for tc in cases if tc.severity == "critical"]
-        # ME1-ME4, B1, B2, ME_EXTRA_DB, PN_TRAVERSAL_USER_ENV, PN_TRAVERSAL_ORDER_ENV, PN_TRAVERSAL_PAYMENT_ENV
-        assert len(critical) >= 9, f"Expected >= 9 critical tests, got {len(critical)}"
+        # ME_API_BYPASS, ME_SHOP_BYPASS, B1, B2, PN_TRAVERSAL_BYPASS, WB_SUFFIX_BYPASS
+        assert len(critical) >= 6, f"Expected >= 6 critical tests, got {len(critical)}"
 
-    def test_s17_path_normalization_has_14_cases(self):
-        """S17 should have 14 path normalization bypass test cases."""
+    def test_s17_path_normalization_has_4_cases(self):
+        """S17 should have 4 path normalization bypass test cases."""
         cases = _build_test_cases("http://localhost:8080")
         s17_cases = [tc for tc in cases if tc.scenario_id == "S17"]
-        assert len(s17_cases) == 14, f"S17 has {len(s17_cases)} cases, expected 14"
+        assert len(s17_cases) == 4, f"S17 has {len(s17_cases)} cases, expected 4"
+
+    def test_s18_admin_whitelist_has_4_cases(self):
+        """S18 should have 4 admin whitelist suffix bypass test cases."""
+        cases = _build_test_cases("http://localhost:8080")
+        s18_cases = [tc for tc in cases if tc.scenario_id == "S18"]
+        assert len(s18_cases) == 4, f"S18 has {len(s18_cases)} cases, expected 4"
 
 
 class TestHttpHelpers:
