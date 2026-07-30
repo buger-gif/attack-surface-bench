@@ -14,8 +14,93 @@ import os
 import json
 import re
 import uuid
+import hashlib
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.backends import default_backend
 
 app = Flask(__name__)
+
+# ============================================================
+# RSA-SHA256 Request Signature Verification
+# All API requests must carry X-Signature, X-Timestamp, X-App-Id headers
+# Exempt paths: /, /login, /reports, /hr, /static/*
+# ============================================================
+RSA_APP_ID = 'app_admin_panel_2024'
+RSA_PUBLIC_KEY_PEM = """-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAt/Ep80AYNhVJqFbm/VjR
+DyLP159D0dWLSRm+A+Nbn+yZ1rY7EfL148lpKDbmGt/04C/XJMwPMo2oufBnMLqQ
+H5GBr3ep+CSXhlnfFtog7BiKhR7Gt3/Qu4Rg3xm1RJFTXIdqiok5f9d5Alrjn/nS
+2+VJIsIuFzW1frlLNTB0J3/P6it8RWiG3j6kGD0Pn4a91L7uH1OOQX4BK5VxSnmn
+j5+/v77MqqPST9NbOAfTAaThgM4kteUeWGcD+4HRTWLmlAoa5lB9F3YtOEB01Bhx
+QxYyxakYjMeBRF8pBqdEFTe83jaIixSTL+f16iSFFVe137hiMgun/9lRcJfvwxM/
+NQIDAQAB
+-----END PUBLIC KEY-----"""
+RSA_PUBLIC_KEY = serialization.load_pem_public_key(
+    RSA_PUBLIC_KEY_PEM.encode(), backend=default_backend()
+)
+RSA_SIGN_EXEMPT_PATHS = ['/', '/login', '/reports', '/hr']
+RSA_SIGN_EXEMPT_PREFIXES = ['/static/']
+
+@app.before_request
+def verify_rsa_signature():
+    """Verify RSA-SHA256 request signature for all non-exempt paths."""
+    # Skip exempt paths
+    path = request.path
+    if path in RSA_SIGN_EXEMPT_PATHS:
+        return None
+    for prefix in RSA_SIGN_EXEMPT_PREFIXES:
+        if path.startswith(prefix):
+            return None
+    # Skip OPTIONS preflight
+    if request.method == 'OPTIONS':
+        return None
+    # Skip internal service-to-service requests (BFF gateway, internal-tools, etc.)
+    # Internal requests carry __admin_token or come from internal IPs (172.20.0.x)
+    if request.args.get('__admin_token') == INTERNAL_KEY or \
+       request.headers.get('X-Admin-Token') == INTERNAL_KEY or \
+       request.headers.get('X-Internal-Request') == 'true' or \
+       request.remote_addr.startswith('172.20.0.'):
+        return None
+
+    signature_b64 = request.headers.get('X-Signature', '')
+    timestamp = request.headers.get('X-Timestamp', '')
+    app_id = request.headers.get('X-App-Id', '')
+
+    if not signature_b64 or not timestamp or not app_id:
+        return jsonify({"error": "ERR_INVALID_SIGNATURE", "message": "Request signature verification failed"}), 401
+
+    if app_id != RSA_APP_ID:
+        return jsonify({"error": "ERR_INVALID_SIGNATURE", "message": "Request signature verification failed"}), 401
+
+    # Check timestamp within 5 minutes
+    try:
+        ts = int(timestamp)
+    except (ValueError, TypeError):
+        return jsonify({"error": "ERR_INVALID_SIGNATURE", "message": "Request signature verification failed"}), 401
+    now_ms = int(datetime.datetime.utcnow().timestamp() * 1000)
+    if abs(now_ms - ts) > 5 * 60 * 1000:
+        return jsonify({"error": "ERR_INVALID_SIGNATURE", "message": "Request signature verification failed"}), 401
+
+    # Construct sign string: METHOD\nPATH\nTIMESTAMP\nBODY_HASH
+    method = request.method.upper()
+    body_data = request.get_data(as_text=True)
+    body_hash = hashlib.sha256(body_data.encode()).hexdigest()
+    sign_str = f"{method}\n{path}\n{timestamp}\n{body_hash}"
+
+    # Verify RSA signature
+    try:
+        signature_bytes = base64.b64decode(signature_b64)
+        RSA_PUBLIC_KEY.verify(
+            signature_bytes,
+            sign_str.encode(),
+            padding.PKCS1v15(),
+            hashes.SHA256()
+        )
+    except Exception:
+        return jsonify({"error": "ERR_INVALID_SIGNATURE", "message": "Request signature verification failed"}), 401
+
+    return None
 
 # ============ 配置（故意放在这里方便泄露） ============
 JWT_SECRET = "dev-secret-change-me"
