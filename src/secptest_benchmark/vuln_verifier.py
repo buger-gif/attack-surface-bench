@@ -6,16 +6,123 @@ then checks the response for the expected flag strings defined in the source cod
 from __future__ import annotations
 
 import base64
+import hashlib as _hashlib
+import hmac as _hmac
 import json
+import os
 import pickle
 import random
+import re
 import socket
 import ssl
+import time as _time
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
+
+
+# ============================================================
+# Request signing helpers for verifier
+# ============================================================
+
+# HMAC-SHA256 signing for Node.js (www.target.bench) system
+_HMAC_APP_KEY = 'ak_www_pub_2024'
+_HMAC_APP_SECRET = 'sk_www_sign_hmac_2024'
+
+def _parse_qs_brackets(qs: str) -> dict:
+    """Parse query string with bracket notation, matching Express qs parser behavior.
+
+    Express's qs parser converts ``username[$ne]=x`` into ``{"username": {"$ne": "x"}}``.
+    This function replicates that nesting so the HMAC signature matches the server-side
+    computation.
+
+    Only single-level bracket nesting is supported (sufficient for the benchmark's
+    NoSQL injection test cases).
+    """
+    result: dict = {}
+    for part in qs.split('&'):
+        if not part:
+            continue
+        if '=' in part:
+            raw_key, v = part.split('=', 1)
+        else:
+            raw_key, v = part, ''
+        k = urllib.parse.unquote(raw_key)
+        v = urllib.parse.unquote(v)
+        # Check for bracket notation: key[inner]
+        bracket_match = re.match(r'^([^\[]+)\[([^\]]+)\]$', k)
+        if bracket_match:
+            outer_key = bracket_match.group(1)
+            inner_key = bracket_match.group(2)
+            if outer_key not in result or not isinstance(result[outer_key], dict):
+                result[outer_key] = {}
+            result[outer_key][inner_key] = v
+        else:
+            result[k] = v
+    return result
+
+
+def _sign_hmac_request(method: str, path: str, query_params: dict | None = None,
+                       body: dict | None = None) -> dict:
+    """Generate HMAC-SHA256 signature headers for Node.js system requests."""
+    timestamp = str(int(_time.time() * 1000))
+    params = {}
+    if method.upper() in ('GET', 'DELETE'):
+        if query_params:
+            params.update(query_params)
+    else:
+        if body:
+            params.update(body)
+    params['timestamp'] = timestamp
+    params['app_key'] = _HMAC_APP_KEY
+    # Remove null/undefined
+    clean = {k: v for k, v in params.items() if v is not None}
+    sorted_keys = sorted(clean.keys())
+    sign_str = '&'.join(f'{k}={json.dumps(clean[k], separators=(",", ":")) if isinstance(clean[k], (dict, list)) else clean[k]}'
+                        for k in sorted_keys)
+    sign = _hmac.new(_HMAC_APP_SECRET.encode(), sign_str.encode(), _hashlib.sha256).hexdigest()
+    return {'X-Sign': sign, 'X-Timestamp': timestamp, 'X-App-Key': _HMAC_APP_KEY}
+
+
+# RSA-SHA256 signing for Flask (admin.target.bench / shop.target.bench) system
+_RSA_APP_ID = 'app_admin_panel_2024'
+_RSA_PRIVATE_KEY_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'targets', 'keys', 'rsa_private.pem')
+
+def _load_rsa_private_key():
+    """Load RSA private key from PEM file."""
+    key_path = os.path.normpath(_RSA_PRIVATE_KEY_PATH)
+    if not os.path.exists(key_path):
+        return None
+    from cryptography.hazmat.primitives import serialization
+    with open(key_path, 'rb') as f:
+        return serialization.load_pem_private_key(f.read(), password=None)
+
+_RSA_PRIVATE_KEY = None  # Lazy loaded
+
+def _sign_rsa_request(method: str, path: str, body: bytes | None = None) -> dict:
+    """Generate RSA-SHA256 signature headers for Flask system requests."""
+    global _RSA_PRIVATE_KEY
+    if _RSA_PRIVATE_KEY is None:
+        _RSA_PRIVATE_KEY = _load_rsa_private_key()
+    if _RSA_PRIVATE_KEY is None:
+        return {}  # No key available, skip signing
+
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.asymmetric import padding
+
+    timestamp = str(int(_time.time() * 1000))
+    body_hash = _hashlib.sha256(body or b'').hexdigest()
+    sign_str = f"{method.upper()}\n{path}\n{timestamp}\n{body_hash}"
+    signature = _RSA_PRIVATE_KEY.sign(
+        sign_str.encode(),
+        padding.PKCS1v15(),
+        hashes.SHA256()
+    )
+    signature_b64 = base64.b64encode(signature).decode()
+    return {'X-Signature': signature_b64, 'X-Timestamp': timestamp, 'X-App-Id': _RSA_APP_ID}
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -102,6 +209,56 @@ class VulnReport:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+def _auto_sign_request(method: str, url: str, headers: dict, body: bytes | None, req: urllib.request.Request) -> dict:
+    """Auto-sign request based on target system. Returns updated headers dict.
+
+    Adds HMAC-SHA256 signature for www.target.bench (Node.js) requests,
+    and RSA-SHA256 signature for admin.target.bench / shop.target.bench (Flask) requests.
+    """
+    # Only sign if not already signed
+    if 'X-Sign' in headers or 'X-Signature' in headers:
+        return headers
+
+    # Determine URL path (strip scheme and host — only strip the leading scheme, not
+    # embedded ones in query parameter values like url=http://...)
+    from urllib.parse import urlparse
+    parsed_url = urlparse(url)
+    url_path = parsed_url.path or '/'
+    # Re-attach query string for parameter extraction (but not for RSA signing)
+    if parsed_url.query:
+        url_path_full = url_path + '?' + parsed_url.query
+    else:
+        url_path_full = url_path
+
+    host_header = headers.get('Host', '')
+    if 'www.target.bench' in url or 'www.target.bench' in host_header:
+        # Extract query params from URL for GET/DELETE, parse body for POST/PUT/DELETE
+        query_params = None
+        body_params = None
+        if method.upper() in ('GET', 'DELETE'):
+            qs = parsed_url.query
+            if qs:
+                query_params = _parse_qs_brackets(qs)
+        else:
+            if body:
+                try:
+                    body_params = json.loads(body.decode('utf-8', errors='replace'))
+                except (json.JSONDecodeError, AttributeError):
+                    body_params = None
+        sign_headers = _sign_hmac_request(method, url_path, query_params=query_params, body=body_params)
+        headers.update(sign_headers)
+        for k, v in sign_headers.items():
+            req.add_header(k, v)
+    elif 'admin.target.bench' in url or 'shop.target.bench' in url or \
+         'admin.target.bench' in host_header or 'shop.target.bench' in host_header:
+        sign_headers = _sign_rsa_request(method, url_path, body)
+        headers.update(sign_headers)
+        for k, v in sign_headers.items():
+            req.add_header(k, v)
+
+    return headers
+
+
 def _http_request(
     method: str,
     url: str,
@@ -111,10 +268,14 @@ def _http_request(
     follow_redirects: bool = False,
 ) -> tuple[int, str, dict]:
     """Send HTTP request and return (status_code, response_body, response_headers)."""
+    if headers is None:
+        headers = {}
     req = urllib.request.Request(url, data=body, method=method)
-    if headers:
-        for k, v in headers.items():
-            req.add_header(k, v)
+    for k, v in headers.items():
+        req.add_header(k, v)
+
+    # Auto-sign request based on target system
+    headers = _auto_sign_request(method, url, headers, body, req)
 
     if follow_redirects:
         # urllib follows redirects by default; we need to disable for open_redirect test
@@ -144,19 +305,20 @@ def _http_request_no_redirect(
     timeout: int = 10,
 ) -> tuple[int, str, dict]:
     """Send HTTP request WITHOUT following redirects."""
+    if headers is None:
+        headers = {}
     req = urllib.request.Request(url, data=body, method=method)
-    if headers:
-        for k, v in headers.items():
-            req.add_header(k, v)
+    for k, v in headers.items():
+        req.add_header(k, v)
+
+    # Auto-sign request based on target system
+    headers = _auto_sign_request(method, url, headers, body, req)
 
     try:
         # Build a custom opener that doesn't follow redirects
         class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
             def redirect_request(self, req, fp, code, msg, headers, newurl):
                 return None
-
-        class NoRedirectHTTPSHandler(urllib.request.HTTPSHandler):
-            pass
 
         ctx = ssl.create_default_context()
         ctx.check_hostname = False

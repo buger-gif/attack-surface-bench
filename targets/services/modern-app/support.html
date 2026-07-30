@@ -1284,6 +1284,79 @@
 </footer>
 
 <script>
+// ===== Request Signature (HMAC-SHA256) =====
+const APP_KEY = 'ak_www_pub_2024';
+const APP_SECRET = 'sk_www_sign_hmac_2024';
+const SIGN_EXEMPT_PATHS = ['/api/auth/login', '/api/auth/register'];
+
+async function signRequest(method, url, params, body) {
+  const timestamp = Date.now().toString();
+  const signParams = {};
+  if (params && typeof params === 'object') {
+    Object.assign(signParams, params);
+  }
+  if (body && typeof body === 'object') {
+    Object.assign(signParams, body);
+  }
+  signParams.timestamp = timestamp;
+  signParams.app_key = APP_KEY;
+  // Remove null/undefined
+  const cleanParams = {};
+  for (const [k, v] of Object.entries(signParams)) {
+    if (v !== null && v !== undefined) cleanParams[k] = v;
+  }
+  const sortedKeys = Object.keys(cleanParams).sort();
+  const signStr = sortedKeys.map(k => {
+    const v = cleanParams[k];
+    return `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`;
+  }).join('&');
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(APP_SECRET);
+  const key = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(signStr));
+  const sign = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return { 'X-Sign': sign, 'X-Timestamp': timestamp, 'X-App-Key': APP_KEY };
+}
+
+const _originalFetch = window.fetch;
+window.fetch = async function(input, init) {
+  let url, method, body, params;
+  if (typeof input === 'string') {
+    url = input;
+  } else if (input instanceof Request) {
+    url = input.url;
+  } else {
+    url = String(input);
+  }
+  method = (init && init.method) || 'GET';
+  // Check if path is exempt
+  const path = url.replace(/^https?:\/\/[^/]+/, '').split('?')[0];
+  if (SIGN_EXEMPT_PATHS.includes(path)) {
+    return _originalFetch.apply(this, arguments);
+  }
+  // Parse query params for GET
+  if (method.toUpperCase() === 'GET' || method.toUpperCase() === 'DELETE') {
+    const qIdx = url.indexOf('?');
+    params = {};
+    if (qIdx !== -1) {
+      url.substring(qIdx + 1).split('&').forEach(p => {
+        const [k, v] = p.split('=');
+        if (k) params[decodeURIComponent(k)] = decodeURIComponent(v || '');
+      });
+    }
+    body = null;
+  } else {
+    params = {};
+    if (init && init.body) {
+      try { body = JSON.parse(init.body); } catch(e) { body = init.body; }
+    }
+  }
+  const signHeaders = await signRequest(method, path, params, body);
+  init = init || {};
+  init.headers = Object.assign({}, init.headers || {}, signHeaders);
+  return _originalFetch.call(this, input, init);
+};
+
 // 客服工单区 - 前端交互逻辑
 
 (function() {

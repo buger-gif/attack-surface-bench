@@ -12,14 +12,88 @@ const { buildSchema } = require('graphql');
 const DOMPurify = require('isomorphic-dompurify');
 const app = express();
 
+// NOTE: Default query parser (qs) is intentionally kept to allow nested object parsing
+// (e.g. username[$ne] becomes {username: {$ne: ...}}) which is required for the
+// M4/M5 NoSQL injection test cases. Do NOT set 'simple' query parser here.
+
 app.use(express.json());
 
 // M9: CORS过宽（允许任意来源+携带凭证）
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Sign, X-Timestamp, X-App-Key');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Credentials', 'true');
+    next();
+});
+
+// ============================================================
+// HMAC-SHA256 Request Signature Verification
+// All API requests must carry X-Sign, X-Timestamp, X-App-Key headers
+// Exempt paths: /, /api/auth/login, /api/auth/register, /shop, /community, /support, /api/docs, /graphql
+// ============================================================
+const HMAC_APP_KEY = 'ak_www_pub_2024';
+const HMAC_APP_SECRET = 'sk_www_sign_hmac_2024';
+const HMAC_EXEMPT_PATHS = ['/', '/api/auth/login', '/api/auth/register', '/shop', '/community', '/support', '/api/docs', '/graphql'];
+
+app.use((req, res, next) => {
+    // Skip signature check for exempt paths and non-API static paths
+    if (HMAC_EXEMPT_PATHS.includes(req.path)) return next();
+    // Skip for static file requests (HTML pages served directly)
+    if (req.path.endsWith('.html') || req.path.endsWith('.js') || req.path.endsWith('.css') || req.path.endsWith('.map')) return next();
+
+    const sign = req.headers['x-sign'];
+    const timestamp = req.headers['x-timestamp'];
+    const appKey = req.headers['x-app-key'];
+
+    if (!sign || !timestamp || !appKey) {
+        return res.status(401).json({ error: 'ERR_INVALID_SIGNATURE', message: 'Request signature verification failed' });
+    }
+
+    // Check app_key
+    if (appKey !== HMAC_APP_KEY) {
+        return res.status(401).json({ error: 'ERR_INVALID_SIGNATURE', message: 'Request signature verification failed' });
+    }
+
+    // Check timestamp within 5 minutes
+    const now = Date.now();
+    const ts = parseInt(timestamp, 10);
+    if (isNaN(ts) || Math.abs(now - ts) > 5 * 60 * 1000) {
+        return res.status(401).json({ error: 'ERR_INVALID_SIGNATURE', message: 'Request signature verification failed' });
+    }
+
+    // Collect parameters: GET uses query, POST/PUT/DELETE uses body
+    let params = {};
+    if (['GET', 'DELETE'].includes(req.method)) {
+        params = { ...req.query };
+    } else {
+        params = { ...req.body };
+    }
+    params.timestamp = timestamp;
+    params.app_key = appKey;
+
+    // Remove null/undefined values
+    const cleanParams = {};
+    for (const [k, v] of Object.entries(params)) {
+        if (v !== null && v !== undefined) {
+            cleanParams[k] = v;
+        }
+    }
+
+    // Sort by key alphabetically and concatenate
+    const sortedKeys = Object.keys(cleanParams).sort();
+    const signStr = sortedKeys.map(k => {
+        const v = cleanParams[k];
+        return `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`;
+    }).join('&');
+
+    // Compute HMAC-SHA256
+    const expectedSign = crypto.createHmac('sha256', HMAC_APP_SECRET).update(signStr).digest('hex');
+
+    if (sign !== expectedSign) {
+        return res.status(401).json({ error: 'ERR_INVALID_SIGNATURE', message: 'Request signature verification failed' });
+    }
+
     next();
 });
 

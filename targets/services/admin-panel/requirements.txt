@@ -2,3 +2,4 @@ flask
 pyjwt
 requests
 pymysql
+cryptography
