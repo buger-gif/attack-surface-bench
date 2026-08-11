@@ -118,11 +118,11 @@ class TestSubdomainDiscovery:
         assert r.status_code == 200
 
     def test_internal_root_returns_json(self, range_available):
-        """internal.target.bench / → 200, JSON with 'endpoints' keyword (priv-gateway, Host collision)."""
+        """internal.target.bench / → 200, JSON service identifier (priv-gateway, Host collision)."""
         r = _priv_get("internal.target.bench", "/")
         assert r.status_code == 200
         body = r.text
-        assert "endpoints" in body
+        assert "Internal Tools" in body
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -255,7 +255,7 @@ class TestModernVulnsSampling:
         """M4: NoSQLi $ne operator returns user data."""
         r = _get("www.target.bench", "/api/users?username[$ne]=nonexistent&debug=1")
         assert r.status_code == 200
-        assert "NOSQL_INJECTION_DEBUG" in r.text
+        assert "query_executed" in r.text
 
     def test_m10_ssrf_fetch(self, range_available):
         """M10: SSRF via /api/fetch endpoint."""
@@ -288,7 +288,6 @@ class TestModernVulnsSampling:
         assert r.status_code == 200
         data = r.json()
         assert data.get("role") == "admin"
-        assert data.get("flag") == "MASS_ASSIGNMENT_ADMIN"
 
     def test_auth_login_wrong_creds_401(self, range_available):
         """Login with wrong credentials returns 401."""
@@ -323,7 +322,7 @@ class TestHiddenParamSampling:
         assert r.status_code == 401
         data = r.json()
         assert "sql_query" in data
-        assert "jwt_secret_preview" in data
+        assert "secret_preview" in data
 
     def test_hp_trace_login(self, range_available):
         """HP_TRACE: trace=1 returns admin JWT token with mode='trace'."""

@@ -424,7 +424,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         scenario_id="S4", scenario_name="modern_vulns",
         method="GET", path="/api/users?username[$ne]=nonexistent&debug=1",
         host="www.target.bench",
-        expected_flags=["NOSQL_INJECTION_DEBUG"],
+        expected_flags=["query_executed", "username"],
         severity="high",
     ))
 
@@ -434,7 +434,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         scenario_id="S4", scenario_name="modern_vulns",
         method="GET", path="/api/users?role[$gt]=&debug=1",
         host="www.target.bench",
-        expected_flags=["NOSQL_INJECTION_DEBUG"],
+        expected_flags=["query_executed", "username"],
         severity="high",
     ))
 
@@ -448,7 +448,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
             "Content-Type": "application/json",
         },
         body=json.dumps({"constructor": {"prototype": {"isAdmin": True}}}),
-        expected_flags=["PROTOTYPE_POLLUTION_SUCCESS"],
+        expected_flags=["prototype_polluted"],
         severity="high",
     ))
 
@@ -460,7 +460,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         method="POST", path="/api/auth/register", host="www.target.bench",
         headers={"Content-Type": "application/json"},
         body=json.dumps({"username": rand_user, "password": "test123", "email": f"{rand_user}@test.com", "role": "admin"}),
-        expected_flags=["MASS_ASSIGNMENT_ADMIN"],
+        expected_flags=['"role":"admin"'],
         severity="high",
     ))
 
@@ -570,7 +570,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         method="POST", path="/login?debug=1", host="admin.target.bench",
         headers={"Content-Type": "application/x-www-form-urlencoded"},
         body="username=admin&password=wrong",
-        expected_flags=["sql_query", "jwt_secret_preview"],
+        expected_flags=["sql_query", "secret_preview"],
         severity="high",
     ))
 
@@ -579,7 +579,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         id="HP_INTERNAL_PARAM", name="Hidden param internal=true",
         scenario_id="S3", scenario_name="hidden_param_detection",
         method="GET", path="/api/users?internal=true", host="admin.target.bench",
-        expected_flags=["HIDDEN_PARAM_INTERNAL_TRUE"],
+        expected_flags=["internal_mode"],
         severity="high",
     ))
 
@@ -588,7 +588,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         id="HP_SENSITIVE_PARAM", name="Hidden param sensitive (sandbox=1)",
         scenario_id="S3", scenario_name="hidden_param_detection",
         method="GET", path="/api/system/status?sandbox=1", host="admin.target.bench",
-        expected_flags=["HIDDEN_PARAM_SANDBOX_BYPASS"],
+        expected_flags=["sandbox"],
         severity="high",
     ))
 
@@ -600,7 +600,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         method="POST", path="/api/preferences", host="admin.target.bench",
         headers={"Content-Type": "application/json"},
         body=json.dumps({"__pickle_data": pickle_payload}),
-        expected_flags=["HIDDEN_PARAM_PICKLE_RCE"],
+        expected_flags=["loaded"],
         severity="high",
     ))
 
@@ -611,7 +611,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         method="POST", path="/api/users/bulk-delete", host="admin.target.bench",
         headers={"Content-Type": "application/xml"},
         body='<?xml version="1.0"?><users><id>1</id></users>',
-        expected_flags=["HIDDEN_PARAM_XXE_TRIGGERED"],
+        expected_flags=["xml_parser"],
         severity="high",
     ))
 
@@ -788,7 +788,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         id="SUB_INTERNAL", name="Subdomain internal.target.bench reachable (Host collision)",
         scenario_id="S1", scenario_name="subdomain_discovery",
         method="GET", path="/", host="internal.target.bench",
-        expected_flags=["endpoints"],
+        expected_flags=["Internal Tools"],
         severity="medium",
         alternate_url=priv_url,
     ))

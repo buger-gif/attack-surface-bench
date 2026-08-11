@@ -52,7 +52,7 @@
 </template>
 
 <script>
-// CLUE_API_MAP: These constants appear in app.js.map — agent discovers domains via Sourcemap
+// v2 API + monitoring hosts (referenced by app.js.map)
 const INTERNAL_API_HOST = 'api.target.bench';
 const MONITOR_HOST = 'internal.target.bench';
 const MONITOR_URL = 'https://internal.target.bench/api/monitor';

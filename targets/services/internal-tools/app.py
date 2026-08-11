@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def index():
-    return jsonify({"endpoints": ["/api/backup", "/api/env", "/api/config", "/api/network", "/api/source"]})
+    return jsonify({"service": "Internal Tools"})
 
 @app.route("/api/backup")
 def backup():
@@ -50,13 +50,10 @@ def source_code():
         "if request.args.get('debug') == '1':",
         "    return jsonify({'jwt_secret_preview': JWT_SECRET[:8] + '...'})",
         "",
-        "# Internal endpoints (no auth required):",
-        "# /api/internal/health",
-        "# /api/internal/db-status",
-        "# /api/internal/config",
-        "",
-        "# Common query string flags used during development:",
-        "# debug, trace, internal, raw, mock, force, preview, sandbox"
+        "# config.py:",
+        "JWT_SECRET = 'dev-secret-change-me'",
+        "INTERNAL_KEY = 'sk-app-internal'",
+        "DB_CONFIG = {'host': 'db', 'user': 'appuser', 'password': 'apppass123'}",
     ], "flag": "INFO_SOURCE_CODE_LEAK"})
 
 @app.route("/backup/latest.sql")

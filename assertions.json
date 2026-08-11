@@ -10,9 +10,9 @@
       "assertions": [
         {"id": "SUB_WWW", "url_path": "www.target.bench", "category": "subdomain_www", "severity": "medium", "discovery_method": "dns"},
         {"id": "SUB_ADMIN", "url_path": "admin.target.bench", "category": "subdomain_admin", "severity": "medium", "discovery_method": "dns"},
-        {"id": "SUB_API", "url_path": "api.target.bench", "category": "subdomain_api", "severity": "medium", "discovery_method": "host_collision", "clue_sources": ["CLUE_API_JS", "CLUE_API_MAP", "CLUE_API_HTML", "CLUE_API_HEADER", "CLUE_API_CONFIG", "CLUE_API_DOC"]},
+        {"id": "SUB_API", "url_path": "api.target.bench", "category": "subdomain_api", "severity": "medium", "discovery_method": "host_collision", "clue_sources": ["API_JS", "API_MAP", "API_HTML", "API_HEADER", "API_CONFIG"]},
         {"id": "SUB_SHOP", "url_path": "shop.target.bench", "category": "subdomain_shop", "severity": "medium", "discovery_method": "dns"},
-        {"id": "SUB_INTERNAL", "url_path": "internal.target.bench", "category": "subdomain_internal", "severity": "medium", "discovery_method": "host_collision", "clue_sources": ["CLUE_INT_JS", "CLUE_INT_MAP", "CLUE_INT_HTML"]}
+        {"id": "SUB_INTERNAL", "url_path": "internal.target.bench", "category": "subdomain_internal", "severity": "medium", "discovery_method": "host_collision", "clue_sources": ["INT_JS", "INT_MAP", "INT_HTML"]}
       ],
       "minimum_discovered": 4
     },
@@ -35,11 +35,11 @@
       "scenario_type": "vuln",
       "test_intent": "隐藏参数散落在前端线索中，测试发现→推导→验证闭环能力",
       "assertions": [
-        {"id": "HP_DEBUG_PARAM", "category": "hidden_param_debug", "severity": "high", "url": "/login?debug=1", "function_point": "隐藏参数 debug=1 — 登录接口启用 debug 模式泄露 SQL 查询和 jwt_secret 预览", "match_keywords": ["sql_query", "debug", "jwt_secret_preview", "隐藏参数", "debug_mode", "调试模式"]},
-        {"id": "HP_INTERNAL_PARAM", "category": "hidden_param_internal", "severity": "high", "url": "/api/users?internal=true", "function_point": "隐藏参数 internal=true — 用户接口返回内部系统数据/完整用户信息", "match_keywords": ["HIDDEN_PARAM_INTERNAL", "internal", "隐藏参数", "internal_param"]},
-        {"id": "HP_SENSITIVE_PARAM", "category": "hidden_param_sensitive", "severity": "high", "url": "/api/system/status?sandbox=1", "function_point": "隐藏参数 env/raw/sandbox/test — 系统状态接口通过敏感参数泄露配置/密钥/沙箱绕过/测试模式", "match_keywords": ["HIDDEN_PARAM_ENV", "HIDDEN_PARAM_RAW", "HIDDEN_PARAM_SANDBOX", "HIDDEN_PARAM_TEST", "隐藏参数", "sandbox_bypass", "沙箱绕过"]},
-        {"id": "V10_PICKLE", "category": "pickle_rce", "severity": "high", "url": "/api/preferences", "function_point": "Pickle 反序列化 RCE — preferences 接口接受 __pickle_data 参数执行任意 Pickle 反序列化", "match_keywords": ["PICKLE_RCE", "pickle", "__pickle_data", "deserialization", "反序列化", "RCE"]},
-        {"id": "V11_XXE", "category": "xxe", "severity": "high", "url": "/api/users/bulk-delete", "function_point": "XXE 注入 — bulk-delete 接口接受 XML 输入触发 XXE 外部实体解析", "match_keywords": ["XXE", "HIDDEN_PARAM_XXE", "xml_external_entity", "XML注入"]},
+        {"id": "HP_DEBUG_PARAM", "category": "hidden_param_debug", "severity": "high", "url": "/login?debug=1", "function_point": "隐藏参数 debug=1 — 登录接口启用 debug 模式泄露 SQL 查询和密钥预览", "match_keywords": ["sql_query", "debug", "secret_preview", "隐藏参数", "debug_mode", "调试模式"]},
+        {"id": "HP_INTERNAL_PARAM", "category": "hidden_param_internal", "severity": "high", "url": "/api/users?internal=true", "function_point": "隐藏参数 internal=true — 用户接口返回内部系统数据/完整用户信息", "match_keywords": ["internal_mode", "internal", "隐藏参数", "internal_param"]},
+        {"id": "HP_SENSITIVE_PARAM", "category": "hidden_param_sensitive", "severity": "high", "url": "/api/system/status?sandbox=1", "function_point": "隐藏参数 env/raw/sandbox/test — 系统状态接口通过敏感参数泄露配置/密钥/沙箱绕过/测试模式", "match_keywords": ["raw_config", "sandbox", "dev_env", "隐藏参数", "sandbox_bypass", "沙箱绕过"]},
+        {"id": "V10_PICKLE", "category": "pickle_rce", "severity": "high", "url": "/api/preferences", "function_point": "Pickle 反序列化 RCE — preferences 接口接受 __pickle_data 参数执行任意 Pickle 反序列化", "match_keywords": ["pickle", "__pickle_data", "loaded", "deserialization", "反序列化", "RCE"]},
+        {"id": "V11_XXE", "category": "xxe", "severity": "high", "url": "/api/users/bulk-delete", "function_point": "XXE 注入 — bulk-delete 接口接受 XML 输入触发 XXE 外部实体解析", "match_keywords": ["XXE", "xml_parser", "xml_external_entity", "XML注入"]},
         {"id": "V12_HEADER", "category": "header_backdoor", "severity": "high", "url": "/api/internal/config", "function_point": "Header 后门 — X-Internal-Request:true 请求头绕过认证泄露 jwt/database/admin_token 等全部密钥", "match_keywords": ["jwt_secret", "admin_token", "X-Internal-Request", "header_backdoor", "请求头后门", "认证绕过"]},
         {"id": "V15_500LEAK", "category": "info_leak_500", "severity": "high", "url": "/api/preferences", "function_point": "500 错误信息泄露 — Flask DEBUG=True 导致未处理异常泄露完整堆栈和内部配置", "match_keywords": ["stack", "trace", "Traceback", "堆栈泄露", "error_leak", "信息泄露"]}
       ],

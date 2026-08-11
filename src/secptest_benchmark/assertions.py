@@ -40,7 +40,7 @@ class AssertionItem:
     service: str | None = None  # for infrastructure
     address: str | None = None  # for infrastructure
     discovery_method: str | None = None  # "dns" | "host_collision"
-    clue_sources: list[str] = field(default_factory=list)  # e.g. ["CLUE_API_JS", "CLUE_API_HTML"]
+    clue_sources: list[str] = field(default_factory=list)  # e.g. ["API_JS", "API_HTML"]
     raw: dict[str, Any] = field(default_factory=dict)
 
 

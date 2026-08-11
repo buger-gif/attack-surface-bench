@@ -48,6 +48,20 @@ def generate_md_report(
     """
     lines = ["# 漏洞验证报告\n"]
 
+    lines.append(
+        "> ⚠️ **本报告为粗略估计，不作为最终判定。** 下方 confirmed/partial/miss 仅基于"
+        "关键词子串匹配，存在两类系统性误差：\n"
+        "> 1. **假阴性（miss）**：Agent 实际发现了漏洞，但用了与预期不同的术语/"
+        "命名/同义词（如把 `nosqli_ne` 写成 `NoSQL operator injection`、把 `ssrf` 写成"
+        "`server-side request forgery`），关键词未命中而被标 miss。\n"
+        "> 2. **假阳性（confirmed/partial）**：关键词恰好出现在无关上下文里被误判为命中。\n"
+        ">\n"
+        "> **请 AI 逐条核验**：对每个 miss，回到 Agent 的 SARIF findings 原文判断是否"
+        "仅是名称未对齐；对每个 confirmed/partial，核对证据是否真的对应预期漏洞。\n"
+        "> **最终判定应 AI native 化**——综合 findings 的请求 URL、响应证据、检测路径与"
+        "预期攻击面语义做整体推理，而非机械套用本表的状态。\n"
+    )
+
     all_findings_text = "\n".join(findings_texts)
 
     for scenario in assertions_suite.get("scenarios", []):
@@ -158,5 +172,21 @@ def generate_md_report(
     # Extra discoveries section
     lines.append("\n## 额外发现\n")
     lines.append("Agent 报出的漏洞不在任何 assertion 关键词范围内时，归入额外发现。**额外发现是亮点不是噪音。**\n")
+
+    lines.append(
+        "\n## 最终判定指引（AI native）\n"
+        "\n"
+        "本报告的状态、达标标记均为**粗略估计**，旨在快速定位需复核的条目，不能作为最终结论。\n"
+        "请按以下原则做 AI native 化判定：\n"
+        "\n"
+        "1. **逐条核验 miss**：回到 Agent 的 SARIF findings 原文，判断该 assertion 对应的"
+        "漏洞是否实际被报出，仅因术语/命名/同义词差异未命中关键词。若是，应纠正为发现。\n"
+        "2. **抽查 confirmed/partial**：核对命中的证据（`evidence.request_url`、"
+        "`response_body_snippet`）是否真的对应预期漏洞，排除关键词在无关上下文误命中的假阳性。\n"
+        "3. **语义推理**：以预期攻击面的语义（功能点 + URL + 漏洞类型）为准，而非字面关键词。"
+        "同一个漏洞用不同语言/术语表达仍算发现。\n"
+        "4. **综合结论**：结合发现率、关键漏洞覆盖（critical_ids）、收敛性（S8）与额外发现，"
+        "给出 Agent 能力的整体评价，而非简单套用达标/未达标标记。\n"
+    )
 
     return "\n".join(lines)

@@ -8,12 +8,13 @@
     "start": "node seed.js && node app.js"
   },
   "dependencies": {
-    "express": "^4.18.0",
-    "jsonwebtoken": "^9.0.0",
-    "mongodb": "^6.0.0",
     "axios": "^1.6.0",
+    "express": "^4.18.0",
     "express-graphql": "^0.12.0",
     "graphql": "^16.8.0",
-    "isomorphic-dompurify": "^2.12.0"
+    "isomorphic-dompurify": "^2.12.0",
+    "jsonwebtoken": "^9.0.0",
+    "mongodb": "^6.0.0",
+    "swagger-ui-express": "^5.0.1"
   }
 }

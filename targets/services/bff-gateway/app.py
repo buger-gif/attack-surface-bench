@@ -107,14 +107,13 @@ def shop_user_profile():
         users = resp.json()
     except:
         users = []
-    return jsonify({"users": users, "source": "BFF_aggregated",
-                   "note": "Contains data from admin service"})
+    return jsonify({"users": users, "source": "BFF_aggregated"})
 
 @app.route("/api/shop/orders")
 def shop_orders():
     """电商前端 — 订单数据"""
     return jsonify({"orders": [{"id": 1, "item": "MacBook", "status": "shipped"}],
-                   "internal_endpoint": "/sysadmin/orders for admin view"})
+                   "source": "BFF_shop"})
 
 # 漏洞：/sysadmin/ 暴露admin-panel接口（无认证）
 @app.route("/sysadmin/<path:path>")
@@ -144,10 +143,7 @@ def internal_proxy(path):
 
 @app.route("/")
 def index():
-    return jsonify({
-        "service": "BFF Gateway",
-        "endpoints": ["/api/shop/*", "/sysadmin/*", "/debug/admin", "/api/internal/*"]
-    })
+    return jsonify({"service": "BFF Gateway"})
 
 # ============================================================
 # Safe endpoints — bff-gateway 门店前台 & 用户账户
@@ -607,12 +603,11 @@ def account_add_address():
                               "timestamp": datetime.now().isoformat()})
     return jsonify({"address": new_address}), 201
 
-# CLUE_API_DOC: Error handler leaks internal API domain reference
 @app.errorhandler(404)
 def bff_not_found(e):
     return jsonify({
         "error": "NOT_FOUND",
-        "hint": "See api.target.bench for API documentation"
+        "api_gateway": "api.target.bench"
     }), 404
 
 if __name__ == "__main__":

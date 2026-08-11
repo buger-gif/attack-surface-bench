@@ -140,8 +140,7 @@ def login():
         token = jwt.encode({"user_id": 1, "role": "admin",
                            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)},
                           JWT_SECRET, algorithm="HS256")
-        return jsonify({"token": token, "mode": "trace",
-                       "warning": "trace mode is for debugging only"})
+        return jsonify({"token": token, "mode": "trace"})
 
     if request.method == "GET":
         return render_template("login.html")
@@ -150,7 +149,7 @@ def login():
         return jsonify({
             "debug": True,
             "sql_query": f"SELECT * FROM users WHERE username='{request.form.get('username', '')}'",
-            "jwt_secret_preview": JWT_SECRET[:8] + "...",
+            "secret_preview": JWT_SECRET[:8] + "...",
             "internal_key_preview": INTERNAL_KEY[:6] + "..."
         }), 401
 
@@ -170,15 +169,13 @@ def login():
 @app.route("/api/users")
 def list_users():
     if request.args.get("internal") == "true":
-        return jsonify({"users": list(USERS.values()), "source": "internal_mode",
-                       "flag": "HIDDEN_PARAM_INTERNAL_TRUE"})
+        return jsonify({"users": list(USERS.values()), "source": "internal_mode"})
     if request.args.get("mock") == "1":
         return jsonify({"users": [{"id": 999, "username": "mock_admin", "password": "mock_pass",
-                                    "role": "admin", "note": "mock data"}],
-                       "flag": "HIDDEN_PARAM_MOCK_DATA"})
+                                    "role": "admin", "note": "mock data"}]})
     if request.args.get("env") == "development":
         return jsonify({"users": list(USERS.values()), "mode": "dev_env",
-                       "db_config": DB_CONFIG, "flag": "HIDDEN_PARAM_ENV_DEV"})
+                       "db_config": DB_CONFIG})
 
     auth = request.headers.get("Authorization", "")
     token = auth.replace("Bearer ", "") if auth.startswith("Bearer ") else ""
@@ -208,14 +205,14 @@ def list_users():
 def get_user(user_id):
     if request.args.get("_method") == "DELETE":
         user = USERS.pop(user_id, None)
-        return jsonify({"deleted": user is not None, "flag": "HIDDEN_PARAM_METHOD_OVERRIDE"})
+        return jsonify({"deleted": user is not None})
     if request.args.get("force") == "1":
         user = USERS.get(user_id)
         return jsonify(user) if user else (jsonify({"error": "Not found"}), 404)
     if request.args.get("preview") == "1":
         user = USERS.get(user_id)
         if user:
-            return jsonify({**user, "preview_mode": True, "flag": "HIDDEN_PARAM_PREVIEW_MODE"})
+            return jsonify({**user, "preview_mode": True})
 
     auth = request.headers.get("Authorization", "")
     token = auth.replace("Bearer ", "") if auth.startswith("Bearer ") else ""
@@ -233,7 +230,7 @@ def get_user(user_id):
 def user_orders(user_id):
     orders = [o for o in ORDERS.values() if o["user_id"] == user_id]
     if request.args.get("nocache") == "1":
-        return jsonify({"orders": orders, "full_data": True, "flag": "HIDDEN_PARAM_NOCACHE_FULL"})
+        return jsonify({"orders": orders, "full_data": True})
     callback = request.args.get("callback")
     if callback:
         resp = json.dumps({"orders": [{"id": o["id"], "item": o["item"]} for o in orders]})
@@ -248,16 +245,13 @@ def system_status():
     if request.args.get("raw") == "1":
         return jsonify({"raw_config": True, "database": DB_CONFIG,
                        "jwt_secret": JWT_SECRET, "internal_key": INTERNAL_KEY,
-                       "env_vars": {k: v for k, v in os.environ.items() if not k.startswith("_")},
-                       "flag": "HIDDEN_PARAM_RAW_CONFIG"})
+                       "env_vars": {k: v for k, v in os.environ.items() if not k.startswith("_")}})
     if request.args.get("test") == "1":
-        return jsonify({"mode": "test", "internal_endpoints": [
-            "/api/internal/health", "/api/internal/db-status", "/api/internal/cache-stats"
-        ], "flag": "HIDDEN_PARAM_TEST_MODE"})
+        return jsonify({"mode": "test", "users_count": len(USERS),
+                       "total_balance": sum(u.get("balance", 0) for u in USERS.values())})
     if request.args.get("sandbox") == "1":
         return jsonify({"mode": "sandbox", "users_count": len(USERS),
-                       "total_balance": sum(u.get("balance", 0) for u in USERS.values()),
-                       "flag": "HIDDEN_PARAM_SANDBOX_BYPASS"})
+                       "total_balance": sum(u.get("balance", 0) for u in USERS.values())})
     return jsonify({"status": "ok", "version": "2.1.0", "env": "production"})
 
 @app.route("/api/internal/health")
@@ -283,7 +277,7 @@ def preferences():
     if pickle_data:
         try:
             obj = pickle.loads(base64.b64decode(pickle_data))
-            return jsonify({"loaded": str(obj), "flag": "HIDDEN_PARAM_PICKLE_RCE"})
+            return jsonify({"loaded": str(obj)})
         except Exception as e:
             return jsonify({"error": str(e)}), 400
     return jsonify({"theme": data.get("theme", "light")})
@@ -298,8 +292,7 @@ def bulk_delete_users():
         try:
             root = ET.fromstring(request.data)
             ids = [int(elem.text) for elem in root.findall(".//id")]
-            return jsonify({"deleted": ids, "source": "xml_parser",
-                           "flag": "HIDDEN_PARAM_XXE_TRIGGERED"})
+            return jsonify({"deleted": ids, "source": "xml_parser"})
         except Exception as e:
             return jsonify({"error": str(e), "source": "xml_parser"}), 400
     data = request.get_json() or {}
@@ -323,11 +316,7 @@ def internal_config():
 # ============================================================
 @app.errorhandler(404)
 def not_found(e):
-    # CLUE_API_HEADER: leaks internal API domain in error response
-    if request.args.get("debug") == "1" or os.environ.get("DEBUG") == "True":
-        resp = jsonify({"error": "Not found", "sourcemap": "/static/app.js.map"})
-    else:
-        resp = jsonify({"error": "Not found"})
+    resp = jsonify({"error": "Not found"})
     resp.headers["X-Internal-Api"] = "api.target.bench"
     return resp, 404
 
@@ -337,7 +326,7 @@ def server_error(e):
         import traceback
         resp = jsonify({"error": e.message if hasattr(e, 'message') else str(e),
                        "traceback": traceback.format_exc(),
-                       "env": dict(os.environ), "flag": "DEBUG_ERROR_LEAK"})
+                       "env": dict(os.environ)})
         resp.headers["X-Internal-Api"] = "api.target.bench"
         return resp, 500
     resp = jsonify({"error": "Internal server error"})
