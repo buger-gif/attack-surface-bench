@@ -14,13 +14,50 @@ from __future__ import annotations
 
 import base64
 import json
+from urllib.parse import urlparse
 
 import pytest
 import requests
 
+# 复用 verifier 的 HMAC-SHA256 / RSA-SHA256 签名实现,保证与靶场签名网关一致
+from secptest_benchmark.vuln_verifier import (
+    _sign_hmac_request as _sign_hmac,
+    _sign_rsa_request as _sign_rsa,
+)
+
 BASE_URL = "http://localhost:80"  # pub-gateway host port
 PRIV_URL = "http://localhost:8081"  # priv-gateway verification port for Host collision tests
 INTERNAL_KEY = "sk-app-internal"
+
+
+def _sign_headers(host: str, method: str, path: str, body: bytes | None = None,
+                  json_body=None) -> dict:
+    """按目标 host 注入对应的请求签名头,与靶场签名网关逻辑一致。
+
+    - www.target.bench        -> HMAC-SHA256 (modern-app)
+    - admin/shop.target.bench -> RSA-SHA256 (admin-panel / bff-gateway)
+    - 其它 (internal/api 等)  -> 无签名网关,返回空 dict
+    豁免路径(/shop /community /login 等)加签名也无害,服务端会跳过校验。
+    """
+    h = host.lower()
+    # 去掉 query 以便签名 path 计算 (RSA 不用 query;HMAC 用 parsed query)
+    path_only = path.split("?", 1)[0]
+    if "www.target.bench" in h:
+        # HMAC: GET/DELETE 用 query,POST/PUT 用 body
+        if method.upper() in ("GET", "DELETE"):
+            from secptest_benchmark.vuln_verifier import _parse_qs_brackets
+            qs = path.split("?", 1)[1] if "?" in path else ""
+            params = _parse_qs_brackets(qs) if qs else None
+            return _sign_hmac(method, path_only, query_params=params)
+        else:
+            body_obj = json_body if json_body is not None else (
+                json.loads(body.decode("utf-8", "ignore")) if body else None
+            )
+            return _sign_hmac(method, path_only, body=body_obj)
+    if "admin.target.bench" in h or "shop.target.bench" in h:
+        body_bytes = body or (json.dumps(json_body).encode() if json_body is not None else None)
+        return _sign_rsa(method, path_only, body=body_bytes)
+    return {}
 
 
 def _make_jwt_none(payload: dict) -> str:
@@ -36,31 +73,57 @@ def _make_jwt_none(payload: dict) -> str:
 ADMIN_JWT_NONE = _make_jwt_none({"userId": "1", "role": "admin"})
 
 
+def _prepare(host: str, method: str, path: str, kwargs: dict) -> tuple[dict, bytes | None, str | None]:
+    """从 kwargs 提取 headers/body, 注入对应签名头。
+
+    若 kwargs 含 json=, 序列化为 bytes 并改用 data= 发送(保证签名 body 与实际 body 一致)。
+    返回 (headers, body_bytes, content_type)。
+    """
+    headers = kwargs.pop("headers", {}) or {}
+    headers["Host"] = host
+    json_body = kwargs.pop("json", None)
+    body_bytes: bytes | None = None
+    content_type: str | None = None
+    if json_body is not None:
+        body_bytes = json.dumps(json_body).encode("utf-8")
+        content_type = "application/json"
+    elif "data" in kwargs and isinstance(kwargs["data"], (bytes, str)):
+        body_bytes = kwargs["data"]
+        if isinstance(body_bytes, str):
+            body_bytes = body_bytes.encode("utf-8")
+    # 注入签名(按 host)
+    sign = _sign_headers(host, method, path, body=body_bytes, json_body=json_body)
+    headers.update(sign)
+    return headers, body_bytes, content_type
+
+
 def _priv_get(host: str, path: str, **kwargs) -> requests.Response:
     """Send GET request to priv-gateway with Host header (Host collision)."""
-    headers = kwargs.pop("headers", {})
-    headers["Host"] = host
+    headers, _body, _ct = _prepare(host, "GET", path, kwargs)
     return requests.get(f"{PRIV_URL}{path}", headers=headers, timeout=10, **kwargs)
 
 
 def _priv_post(host: str, path: str, **kwargs) -> requests.Response:
     """Send POST request to priv-gateway with Host header (Host collision)."""
-    headers = kwargs.pop("headers", {})
-    headers["Host"] = host
+    headers, body, ct = _prepare(host, "POST", path, kwargs)
+    if body is not None:
+        kwargs["data"] = body
+        headers.setdefault("Content-Type", ct)
     return requests.post(f"{PRIV_URL}{path}", headers=headers, timeout=10, **kwargs)
 
 
 def _get(host: str, path: str, **kwargs) -> requests.Response:
     """Send GET request through pub-gateway with Host header simulating domain access."""
-    headers = kwargs.pop("headers", {})
-    headers["Host"] = host
+    headers, _body, _ct = _prepare(host, "GET", path, kwargs)
     return requests.get(f"{BASE_URL}{path}", headers=headers, timeout=10, **kwargs)
 
 
 def _post(host: str, path: str, **kwargs) -> requests.Response:
     """Send POST request through pub-gateway with Host header simulating domain access."""
-    headers = kwargs.pop("headers", {})
-    headers["Host"] = host
+    headers, body, ct = _prepare(host, "POST", path, kwargs)
+    if body is not None:
+        kwargs["data"] = body
+        headers.setdefault("Content-Type", ct)
     return requests.post(f"{BASE_URL}{path}", headers=headers, timeout=10, **kwargs)
 
 

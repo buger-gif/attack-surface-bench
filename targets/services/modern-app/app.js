@@ -247,6 +247,28 @@ app.get('/api/users/:id', jwtMiddleware, async (req, res) => {
     }
 });
 
+// M6_ERAUD: 原型链污染后的越权读端点 — 仅 admin 可读他人敏感数据;
+// 但 M6 污染后 Object.prototype.isAdmin===true 被当 admin 放行,
+// 普通用户(或 alg=none 伪造 token)即可越权读取 admin 的 api_key/id_card 等。
+app.get('/api/users/:id/sensitive', jwtMiddleware, async (req, res) => {
+    try {
+        const user = await db.collection('users').findOne({ _id: new ObjectId(req.params.id) });
+        if (!user) return res.status(404).json({ error: 'Not found' });
+        // 权限: admin 直放行; 污染后 Object.prototype.isAdmin===true 也放行(越权); 否则只能读自己
+        const isAdmin = req.user.role === 'admin' || Object.prototype.isAdmin === true;
+        if (!isAdmin && req.user.userId !== req.params.id) {
+            return res.status(403).json({ error: 'Admin required' });
+        }
+        res.json({ username: user.username, api_key: user.api_key, id_card: user.id_card,
+                   balance: user.balance, phone: user.phone });
+    } catch (e) {
+        if (process.env.DEBUG === 'true') {
+            return res.status(500).json({ error: e.message, stack: e.stack });
+        }
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // M10: SSRF
 app.get('/api/fetch', async (req, res) => {
     const { url } = req.query;

