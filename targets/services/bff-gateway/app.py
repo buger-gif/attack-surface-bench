@@ -1,3 +1,4 @@
+# v6.0 DMZ 化: 内网信任前缀与上游常量 172.20.0.x → 172.21.0.x (bm-internal)
 # bff-gateway: Flask BFF with sysadmin/debug/internal proxy
 
 from flask import Flask, request, jsonify, send_file
@@ -44,9 +45,9 @@ def verify_rsa_signature():
     if request.method == 'OPTIONS':
         return None
     # Skip internal service-to-service requests (from admin-panel, internal-tools, etc.)
-    # Internal requests carry __admin_token or come from internal IPs (172.20.0.x)
+    # Internal requests carry __admin_token or come from internal IPs (172.21.0.x)
     if request.args.get('__admin_token') == INTERNAL_KEY or \
-       request.remote_addr.startswith('172.20.0.'):
+       request.remote_addr.startswith('172.21.0.'):
         return None
 
     signature_b64 = request.headers.get('X-Signature', '')
@@ -85,8 +86,8 @@ def verify_rsa_signature():
 
     return None
 
-ADMIN_SERVICE = "http://172.20.0.11:5000"
-USER_SERVICE = "http://172.20.0.10:3000"
+ADMIN_SERVICE = "http://172.21.0.11:5000"
+USER_SERVICE = "http://172.21.0.10:3000"
 INTERNAL_KEY = "sk-app-internal"
 
 # BFF聚合数据 — 不同前端看到不同数据

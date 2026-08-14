@@ -402,19 +402,19 @@
         {
           "id": "N1",
           "service": "mysql",
-          "address": "172.20.0.20:3306",
+          "address": "172.21.0.20:3306",
           "severity": "medium"
         },
         {
           "id": "N2",
           "service": "redis",
-          "address": "172.20.0.21:6379",
+          "address": "172.21.0.21:6379",
           "severity": "medium"
         },
         {
           "id": "N3",
           "service": "mongodb",
-          "address": "172.20.0.22:27017",
+          "address": "172.21.0.22:27017",
           "severity": "medium"
         }
       ],

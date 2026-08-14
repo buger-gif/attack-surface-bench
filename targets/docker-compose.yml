@@ -1,7 +1,14 @@
-# docker-compose.yml for benchmark target range (10 services on bm-net 172.20.0.0/24)
+# docker-compose.yml for benchmark target range
 # v5.0: Dual gateway — pub-gateway(.2) + priv-gateway(.3)
 # spec 29 §2.4: 域名视图改由网关 aliases 承载 (Docker 嵌入 DNS == BIND9 == 网关路径),
 # 后端容器不再钉 hostname: *.target.bench (影子视图曾让域名绕过网关直连后端)。
+# v6.0 (2026-08-14, 用户拍板): DMZ 化 — bm-net 降为 DMZ (只放网关+DNS,
+# 攻击者/worker 只挂它), 后端全部迁入新内网 bm-internal 172.21.0.0/24,
+# 网关双宿主 (两网同末位 .2/.3)。网络层直接消灭"绕过网关直连后端":
+# worker 在 DMZ 只能摸到 172.20.0.2/.3/.53, 172.21 段无路由不可达。
+# 应用侧同步: "内部来源"信任前缀 172.20.0. → 172.21.0. (bff-gateway /
+# admin-panel), 语义与旧平面网完全一致 (网关代理来的请求=内网可信,
+# DMZ 来的=不可信)。
 
 version: '3.8'
 
@@ -28,6 +35,8 @@ services:
           - target.bench
           - www.target.bench
           - shop.target.bench
+      bm-internal:
+        ipv4_address: 172.21.0.2
     depends_on: [www, admin, shop]
 
   priv-gateway:
@@ -41,6 +50,8 @@ services:
         ipv4_address: 172.20.0.3
         aliases:
           - admin.target.bench
+      bm-internal:
+        ipv4_address: 172.21.0.3
     depends_on: [admin, internal]
 
   # ===== www.target.bench — 现代漏洞基线 =====
@@ -53,8 +64,8 @@ services:
       - NODE_ENV=development
       - DEBUG=true
     networks:
-      bm-net:
-        ipv4_address: 172.20.0.10
+      bm-internal:
+        ipv4_address: 172.21.0.10
     depends_on: [mongodb]
 
   # ===== admin.target.bench — 隐藏参数后门核心 =====
@@ -69,8 +80,8 @@ services:
       - ADMIN_PASSWORD=admin123
       - DEBUG=True
     networks:
-      bm-net:
-        ipv4_address: 172.20.0.11
+      bm-internal:
+        ipv4_address: 172.21.0.11
     depends_on: [db]
 
   # ===== api.target.bench — 同服务多入口（指向admin-panel内部路由） =====
@@ -81,12 +92,12 @@ services:
   shop:
     build: ./services/bff-gateway
     environment:
-      - ADMIN_SERVICE_URL=http://172.20.0.11:5000
-      - USER_SERVICE_URL=http://172.20.0.10:3000
+      - ADMIN_SERVICE_URL=http://172.21.0.11:5000
+      - USER_SERVICE_URL=http://172.21.0.10:3000
       - INTERNAL_KEY=sk-app-internal
     networks:
-      bm-net:
-        ipv4_address: 172.20.0.12
+      bm-internal:
+        ipv4_address: 172.21.0.12
 
   # ===== internal.target.bench — 信息泄露 =====
   internal:
@@ -96,8 +107,8 @@ services:
       - REDIS_HOST=redis
       - NO_AUTH=true
     networks:
-      bm-net:
-        ipv4_address: 172.20.0.13
+      bm-internal:
+        ipv4_address: 172.21.0.13
     depends_on: [db, redis]
 
   db:
@@ -108,8 +119,8 @@ services:
       MYSQL_USER: appuser
       MYSQL_PASSWORD: apppass123
     networks:
-      bm-net:
-        ipv4_address: 172.20.0.20
+      bm-internal:
+        ipv4_address: 172.21.0.20
     ports:
       - "13306:3306"
     volumes:
@@ -118,16 +129,16 @@ services:
   redis:
     image: redis:7-alpine
     networks:
-      bm-net:
-        ipv4_address: 172.20.0.21
+      bm-internal:
+        ipv4_address: 172.21.0.21
     ports:
       - "6379:6379"
 
   mongodb:
     image: mongo:6-jammy
     networks:
-      bm-net:
-        ipv4_address: 172.20.0.22
+      bm-internal:
+        ipv4_address: 172.21.0.22
     ports:
       - "27017:27017"
     environment:
@@ -147,8 +158,8 @@ services:
       - REDIS_PORT=6379
       - REDIS_PASSWORD=RedisUser#2024!Secure
     networks:
-      bm-net:
-        ipv4_address: 172.20.0.30
+      bm-internal:
+        ipv4_address: 172.21.0.30
 
   order-service:
     build: ./services/spring-boot-service
@@ -161,8 +172,8 @@ services:
       - MQ_USERNAME=order_mq_user
       - MQ_PASSWORD=RabbitMQ#Order#2024!Secret
     networks:
-      bm-net:
-        ipv4_address: 172.20.0.31
+      bm-internal:
+        ipv4_address: 172.21.0.31
 
   payment-service:
     build: ./services/spring-boot-service
@@ -180,11 +191,15 @@ services:
       - WECHAT_PAY_API_KEY=FAKE_BENCH_WeChatPayApiKey2024SecretKey!!
       - WECHAT_PAY_API_V3_KEY=FAKE_BENCH_WeChatPayApiV3Key2024VerySecret
     networks:
-      bm-net:
-        ipv4_address: 172.20.0.32
+      bm-internal:
+        ipv4_address: 172.21.0.32
 
 networks:
   bm-net:
     ipam:
       config:
         - subnet: 172.20.0.0/24
+  bm-internal:
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24

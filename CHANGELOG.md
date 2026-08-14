@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-08-14
+
+### Changed - DMZ 化：网络层消灭"绕过网关直连后端"
+
+- **双网络拓扑**：`bm-net`（172.20.0.0/24）降为 DMZ，只放 pub-gateway(.2)/priv-gateway(.3)/BIND9(.53)，是 Agent 唯一接入点；新建内网 `bm-internal`（172.21.0.0/24）承载全部后端（www .10 / admin .11 / shop .12 / internal .13 / db .20 / redis .21 / mongodb .22 / user-service .30 / order .31 / payment .32），IP 只改第二段。DMZ 对内网无路由，后端只能经网关或 Host 碰撞到达。
+- **网关双宿主**：pub/priv-gateway 同挂两网（内网侧 172.21.0.2/.3），upstream 全部改指 172.21.0.x；BIND9 zone 不变（仍指 DMZ 侧 .2/.3）。
+- **应用侧"内部来源"信任前缀同步**：`bff-gateway/app.py`、`admin-panel/app.py` 的 `remote_addr.startswith('172.20.0.')` → `172.21.0.`，语义与旧平面网一致（网关代理来的请求=内网可信，DMZ 来的=不可信）。
+- **面包屑/断言同步**：internal-tools 网络地图与部署日志、modern-app db-status 服务地图、`assertions.json` N1-N3、`vuln_verifier.py` / `test_target_functional.py` 的 SSRF 与信息泄露断言全部改指 172.21.0.x。
+
 ## [1.5.0] - 2026-08-11
 
 ### Changed - 对齐"中危以上 + 实际危害"验证目标

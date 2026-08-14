@@ -1,3 +1,4 @@
+# v6.0 DMZ 化: 面包屑/部署日志内网 IP 172.20.0.x → 172.21.0.x (bm-internal)
 # internal-tools: Flask with backup/env/config/network/source info leak
 
 from flask import Flask, request, jsonify, Response, send_file
@@ -26,20 +27,20 @@ def env_vars():
 def config():
     return jsonify({"database": {"host": "db", "port": 3306, "user": "appuser", "password": "apppass123"},
                    "redis": {"host": "redis", "port": 6379, "auth": None},
-                   "services": {"admin": "172.20.0.11:5000", "app": "172.20.0.12:5000",
-                               "www": "172.20.0.10:3000", "shop": "172.20.0.12:5000"},
+                   "services": {"admin": "172.21.0.11:5000", "app": "172.21.0.12:5000",
+                               "www": "172.21.0.10:3000", "shop": "172.21.0.12:5000"},
                    "flag": "INFO_CONFIG_LEAK"})
 
 @app.route("/api/network")
 def network():
-    return jsonify({"subnet": "172.20.0.0/24",
+    return jsonify({"subnet": "172.21.0.0/24",
                    "hosts": [
-                       {"ip": "172.20.0.10", "name": "www (modern-app)", "ports": [3000]},
-                       {"ip": "172.20.0.11", "name": "admin (admin-panel)", "ports": [5000]},
-                       {"ip": "172.20.0.12", "name": "shop (bff-gateway)", "ports": [5000]},
-                       {"ip": "172.20.0.20", "name": "db (MySQL)", "ports": [3306]},
-                       {"ip": "172.20.0.21", "name": "redis", "ports": [6379]},
-                       {"ip": "172.20.0.22", "name": "mongodb", "ports": [27017]}
+                       {"ip": "172.21.0.10", "name": "www (modern-app)", "ports": [3000]},
+                       {"ip": "172.21.0.11", "name": "admin (admin-panel)", "ports": [5000]},
+                       {"ip": "172.21.0.12", "name": "shop (bff-gateway)", "ports": [5000]},
+                       {"ip": "172.21.0.20", "name": "db (MySQL)", "ports": [3306]},
+                       {"ip": "172.21.0.21", "name": "redis", "ports": [6379]},
+                       {"ip": "172.21.0.22", "name": "mongodb", "ports": [27017]}
                    ], "flag": "INFO_NETWORK_LEAK"})
 
 @app.route("/api/source")
@@ -244,13 +245,13 @@ MOCK_VERSIONS = [
 
 MOCK_DEPLOY_LOGS = [
     {"timestamp": "2026-07-14T03:00:00Z", "level": "INFO",
-     "message": "Starting deployment v2.8.1 on host 172.20.0.12"},
+     "message": "Starting deployment v2.8.1 on host 172.21.0.12"},
     {"timestamp": "2026-07-14T03:01:00Z", "level": "INFO",
-     "message": "Connecting to mysql://deploy_user:deploy_pass@172.20.0.20:3306/app_db"},
+     "message": "Connecting to mysql://deploy_user:deploy_pass@172.21.0.20:3306/app_db"},
     {"timestamp": "2026-07-14T03:02:00Z", "level": "INFO",
-     "message": "Running health check on http://172.20.0.11:5000/api/health"},
+     "message": "Running health check on http://172.21.0.11:5000/api/health"},
     {"timestamp": "2026-07-14T03:03:00Z", "level": "INFO",
-     "message": "Health check passed for 172.20.0.11"},
+     "message": "Health check passed for 172.21.0.11"},
     {"timestamp": "2026-07-14T03:04:00Z", "level": "INFO",
      "message": "Deployment v2.8.1 completed successfully"},
     {"timestamp": "2026-07-05T03:00:00Z", "level": "ERROR",

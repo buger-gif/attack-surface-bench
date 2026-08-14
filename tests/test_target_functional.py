@@ -1,3 +1,4 @@
+# v6.0 DMZ 化: SSRF/信息泄露断言内网 IP 172.20.0.x → 172.21.0.x (bm-internal)
 """Functional tests for the attack-surface-bench target range.
 
 These tests send real HTTP requests through the gateway to verify:
@@ -322,7 +323,7 @@ class TestModernVulnsSampling:
 
     def test_m10_ssrf_fetch(self, range_available):
         """M10: SSRF via /api/fetch endpoint."""
-        r = _get("www.target.bench", "/api/fetch?url=http://172.20.0.11:5000/api/internal/health")
+        r = _get("www.target.bench", "/api/fetch?url=http://172.21.0.11:5000/api/internal/health")
         assert r.status_code == 200
 
     def test_m_internal_cfg_leaks_jwt_secret(self, range_available):
@@ -432,7 +433,7 @@ class TestInfoLeak:
     def test_i4_network(self, range_available):
         r = _priv_get("internal.target.bench", "/api/network")
         assert r.status_code == 200
-        assert "INFO_NETWORK_LEAK" in r.text or "172.20.0.10" in r.text
+        assert "INFO_NETWORK_LEAK" in r.text or "172.21.0.10" in r.text
 
     def test_i5_source(self, range_available):
         r = _priv_get("internal.target.bench", "/api/source")

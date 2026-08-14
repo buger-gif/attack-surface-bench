@@ -1,3 +1,4 @@
+# v6.0 DMZ 化: SSRF/信息泄露断言内网 IP 172.20.0.x → 172.21.0.x (bm-internal)
 """Vulnerability verifier — direct HTTP tests against the benchmark target range.
 
 Each test case sends a real HTTP request to trigger a specific vulnerability,
@@ -487,7 +488,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
     cases.append(VulnTestCase(
         id="M10", name="SSRF via fetch endpoint",
         scenario_id="S4", scenario_name="modern_vulns",
-        method="GET", path="/api/fetch?url=http://172.20.0.11:5000/api/internal/health",
+        method="GET", path="/api/fetch?url=http://172.21.0.11:5000/api/internal/health",
         host="www.target.bench",
         expected_flags=["INTERNAL_ENDPOINT_HEALTH"],
         severity="high",
@@ -700,7 +701,7 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
         id="I4", name="Network topology leak",
         scenario_id="S5", scenario_name="info_leak",
         method="GET", path="/api/network", host="internal.target.bench",
-        expected_flags=["INFO_NETWORK_LEAK", "172.20.0.10"],
+        expected_flags=["INFO_NETWORK_LEAK", "172.21.0.10"],
         severity="high",
     ))
 

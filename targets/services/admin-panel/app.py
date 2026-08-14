@@ -1,3 +1,4 @@
+# v6.0 DMZ 化: 内网信任前缀 172.20.0. → 172.21.0. (bm-internal)
 # admin-panel: Flask service with 15 hidden params + JWT + pickle + XXE + header backdoor
 
 from flask import Flask, request, jsonify, Response, render_template, make_response
@@ -55,11 +56,11 @@ def verify_rsa_signature():
     if request.method == 'OPTIONS':
         return None
     # Skip internal service-to-service requests (BFF gateway, internal-tools, etc.)
-    # Internal requests carry __admin_token or come from internal IPs (172.20.0.x)
+    # Internal requests carry __admin_token or come from internal IPs (172.21.0.x)
     if request.args.get('__admin_token') == INTERNAL_KEY or \
        request.headers.get('X-Admin-Token') == INTERNAL_KEY or \
        request.headers.get('X-Internal-Request') == 'true' or \
-       request.remote_addr.startswith('172.20.0.'):
+       request.remote_addr.startswith('172.21.0.'):
         return None
 
     signature_b64 = request.headers.get('X-Signature', '')

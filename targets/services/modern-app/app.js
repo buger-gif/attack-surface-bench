@@ -1,3 +1,4 @@
+// v6.0 DMZ 化: 服务地图面包屑内网 IP 172.20.0.x → 172.21.0.x (bm-internal)
 // modern-app: Express + JWT + MongoDB + GraphQL + SSRF benchmark service
 
 const express = require('express');
@@ -320,9 +321,9 @@ app.use('/graphql', graphqlHTTP({ schema, rootValue: root, graphiql: true, intro
 // 内部端点 — 无认证
 app.get('/api/internal/config', (req, res) => {
     res.json({ jwt_secret: JWT_SECRET, mongo_url: MONGO_URL, env: process.env,
-              services: { admin: '172.20.0.11:5000', app: '172.20.0.12:5000',
-                         internal: '172.20.0.13:5000', db: '172.20.0.20:3306',
-                         redis: '172.20.0.21:6379', mongodb: '172.20.0.22:27017' } });
+              services: { admin: '172.21.0.11:5000', app: '172.21.0.12:5000',
+                         internal: '172.21.0.13:5000', db: '172.21.0.20:3306',
+                         redis: '172.21.0.21:6379', mongodb: '172.21.0.22:27017' } });
 });
 
 app.get('/api/internal/db-status', async (req, res) => {
