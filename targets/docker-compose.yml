@@ -1,5 +1,7 @@
 # docker-compose.yml for benchmark target range (10 services on bm-net 172.20.0.0/24)
 # v5.0: Dual gateway — pub-gateway(.2) + priv-gateway(.3)
+# spec 29 §2.4: 域名视图改由网关 aliases 承载 (Docker 嵌入 DNS == BIND9 == 网关路径),
+# 后端容器不再钉 hostname: *.target.bench (影子视图曾让域名绕过网关直连后端)。
 
 version: '3.8'
 
@@ -22,6 +24,10 @@ services:
     networks:
       bm-net:
         ipv4_address: 172.20.0.2
+        aliases:
+          - target.bench
+          - www.target.bench
+          - shop.target.bench
     depends_on: [www, admin, shop]
 
   priv-gateway:
@@ -33,12 +39,13 @@ services:
     networks:
       bm-net:
         ipv4_address: 172.20.0.3
+        aliases:
+          - admin.target.bench
     depends_on: [admin, internal]
 
   # ===== www.target.bench — 现代漏洞基线 =====
   www:
     build: ./services/modern-app
-    hostname: www.target.bench
     environment:
       - MONGO_HOST=mongodb
       - MONGO_PORT=27017
@@ -53,7 +60,6 @@ services:
   # ===== admin.target.bench — 隐藏参数后门核心 =====
   admin:
     build: ./services/admin-panel
-    hostname: admin.target.bench
     environment:
       - DB_HOST=db
       - DB_USER=appuser
@@ -74,7 +80,6 @@ services:
   # ===== shop.target.bench — BFF数据聚合 =====
   shop:
     build: ./services/bff-gateway
-    hostname: shop.target.bench
     environment:
       - ADMIN_SERVICE_URL=http://172.20.0.11:5000
       - USER_SERVICE_URL=http://172.20.0.10:3000
@@ -86,7 +91,6 @@ services:
   # ===== internal.target.bench — 信息泄露 =====
   internal:
     build: ./services/internal-tools
-    hostname: internal.target.bench
     environment:
       - DB_HOST=db
       - REDIS_HOST=redis
