@@ -146,7 +146,7 @@ BFF（Backend For Frontend）聚合层是真实系统最易出问题的位置—
 
 | 测试 ID | 服务 | 地址 | 严重性 |
 |---------|------|------|-------|
-| N1 | MySQL 8.0 | 172.21.0.20:3306 (host:13306) | medium |
+| N1 | MySQL 8.0 | 172.21.0.20:3306 (仅 bm-internal 内网) | medium |
 | N2 | Redis 7 | 172.21.0.21:6379 | medium |
 | N3 | MongoDB 6 | 172.21.0.22:27017 | medium |
 
@@ -477,7 +477,7 @@ benchmark report [report-file]       # 输出格式化终端报告（默认 repo
 └──────────────────────────────────────────────────────┘
 ```
 
-宿主机端口映射：pub-gateway → 80，priv-gateway → 8081（验证端口），MySQL → 13306，Redis → 6379，MongoDB → 27017。
+宿主机端口映射：pub-gateway → 80，priv-gateway → 8081（验证端口）。数据存储（MySQL/Redis/MongoDB）无宿主发布（spec 31：发布端口会被 Docker DOCKER 链无条件 ACCEPT 打穿 DMZ 隔离）；宿主调试用 `docker exec` 进容器。
 
 ---
 

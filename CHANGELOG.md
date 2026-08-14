@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-08-14
+
+### Fixed - DMZ 宿主端口发布打穿修复（spec 31）
+
+- **根因**：v1.6.0 DMZ 化消灭了未发布端口的直连，但 db/redis/mongodb 仍带宿主 `ports:` 发布（13306/6379/27017）。Docker 的 DOCKER filter 链对发布端口无条件 ACCEPT，先于 DOCKER-ISOLATION 跨网隔离规则——任何网络的容器都能用容器真实 IP 直连数据存储。secptest-next 全量 e2e（camp-mvp6-288f17ed）audit 实锤 worker 用 pymysql/pymongo/redis 直连 172.21.0.20:3306/.21:6379/.22:27017 读出全量数据。
+- **修复**：撤三处 `ports:` 发布（唯一根治；`127.0.0.1` 绑址防不住跨网，已实验证伪）；`bm-internal` 加 `internal: true` 作纵深防御（需 compose down 重建网络生效）。宿主调试 DB 改用 `docker exec` 进容器。
+- **verifier 容器化**：S7 N1-N3 从宿主机 socket 直连 localhost 映射端口，改为一次性容器（`docker run --rm --network secptest-bm_bm-internal nginx:alpine nc`）网内正向可达性验证；`VulnTestCase` 新增 `via_container_network` 字段。语义从"服务暴露给宿主"改为"数据存储仅内网可达"。
+- **验证**：四视角矩阵——bm-internal 内 OPEN ×3，bm-net(DMZ)/bridge/bridge+bm-net 双网/宿主 localhost 全 CLOSED；网关冒烟 www→302、shop/admin→200、Host 碰撞 api+internal→200；self-test 47/47 全过。
+- `assertions.json` S7 test_intent 与 README 端口映射说明同步。
+
 ## [1.6.0] - 2026-08-14
 
 ### Changed - DMZ 化：网络层消灭"绕过网关直连后端"

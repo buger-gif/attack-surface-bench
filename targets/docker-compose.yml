@@ -9,6 +9,13 @@
 # 应用侧同步: "内部来源"信任前缀 172.20.0. → 172.21.0. (bff-gateway /
 # admin-panel), 语义与旧平面网完全一致 (网关代理来的请求=内网可信,
 # DMZ 来的=不可信)。
+# v6.1 (2026-08-14, spec 31): DMZ 打穿修复 — 撤 db/redis/mongodb 宿主
+# ports 发布 (13306/6379/27017)。Docker DOCKER 链对发布端口无条件
+# ACCEPT, 先于跨网隔离规则, 任何网络的容器都能用容器真实 IP 直连
+# (全量 e2e camp-mvp6-288f17ed audit 实锤 worker 直连 DB 读全量)。
+# 127.0.0.1 绑址防不住跨网; internal:true 也挡不住发布端口, 撤发布是
+# 唯一根治, bm-internal internal:true 仅作纵深补充。宿主调试 DB 请用
+# docker exec 进容器, 不得回加 ports。
 
 version: '3.8'
 
@@ -121,8 +128,6 @@ services:
     networks:
       bm-internal:
         ipv4_address: 172.21.0.20
-    ports:
-      - "13306:3306"
     volumes:
       - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
@@ -131,16 +136,12 @@ services:
     networks:
       bm-internal:
         ipv4_address: 172.21.0.21
-    ports:
-      - "6379:6379"
 
   mongodb:
     image: mongo:6-jammy
     networks:
       bm-internal:
         ipv4_address: 172.21.0.22
-    ports:
-      - "27017:27017"
     environment:
       MONGO_INITDB_DATABASE: modern_app
 
@@ -200,6 +201,10 @@ networks:
       config:
         - subnet: 172.20.0.0/24
   bm-internal:
+    # spec 31: 纵深防御 — 禁出向 NAT + 强化跨网转发隔离。注意 internal 属性
+    # 需 compose down 重建网络才生效; 它挡不住 ports 发布端口(那才是打穿
+    # 根因, 已撤), 只挡未发布端口的跨网转发。
+    internal: true
     ipam:
       config:
         - subnet: 172.21.0.0/24

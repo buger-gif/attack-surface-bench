@@ -397,7 +397,7 @@
       "id": "S7",
       "name": "infrastructure",
       "scenario_type": "vuln",
-      "test_intent": "后端数据库无认证暴露在 Docker 网络中，模拟真实运维失误",
+      "test_intent": "后端数据库仅 bm-internal 内网可达 (spec 31 起无宿主/DMZ 端口发布, 发布端口会打穿 Docker 跨网隔离), 模拟真实运维失误的内网横向目标",
       "services": [
         {
           "id": "N1",

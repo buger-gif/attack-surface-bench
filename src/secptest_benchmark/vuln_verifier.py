@@ -16,6 +16,7 @@ import random
 import re
 import socket
 import ssl
+import subprocess
 import time as _time
 import urllib.error
 import urllib.parse
@@ -150,6 +151,9 @@ class VulnTestCase:
     setup_id: str | None = None  # ID of a setup test that must pass first
     follow_redirects: bool = True  # Whether to follow HTTP redirects
     alternate_url: str | None = None  # Override base_url for Host collision tests on priv-gateway
+    # spec 31: TCP case 经一次性容器在指定 docker 网络内探测 (DMZ 化后数据存储
+    # 无宿主发布端口, 宿主机 socket 直连不可达)。值 = 网络名; None = 宿主机直连。
+    via_container_network: str | None = None
 
 
 @dataclass
@@ -343,6 +347,29 @@ def _tcp_check(host: str, port: int, timeout: int = 3) -> bool:
         sock = socket.create_connection((host, port), timeout=timeout)
         sock.close()
         return True
+    except Exception:
+        return False
+
+
+# spec 31: bm-internal 网络名 (compose 项目 secptest-bm 实证); nginx:alpine
+# 是网关同镜像本地必有, alpine 自带 busybox nc。
+_INTERNAL_NETWORK = "secptest-bm_bm-internal"
+_NC_IMAGE = "nginx:alpine"
+
+
+def _tcp_check_via_container(network: str, host: str, port: int, timeout: int = 3) -> bool:
+    """Check TCP reachability from inside a throwaway container on `network`.
+
+    spec 31: DMZ 化后数据存储无宿主 ports 发布, 宿主机直连不可达; 验证须
+    在 bm-internal 网内执行 (一次性容器, --rm 自清)。
+    """
+    try:
+        proc = subprocess.run(
+            ["docker", "run", "--rm", "--network", network,
+             _NC_IMAGE, "nc", "-z", f"-w{timeout}", host, str(port)],
+            capture_output=True, timeout=timeout + 15,
+        )
+        return proc.returncode == 0
     except Exception:
         return False
 
@@ -776,31 +803,35 @@ def _build_test_cases(base_url: str, priv_url: str | None = None) -> list[VulnTe
     ))
 
     # ═══════════════════════════════════════════════════════════════
-    # S7: infrastructure — TCP port checks on localhost mapped ports
-    # Docker maps: 13306:3306, 6379:6379, 27017:27017
+    # S7: infrastructure — 数据存储仅 bm-internal 内网可达 (spec 31)
+    # v6.1 起无宿主 ports 发布 (13306/6379/27017 已撤: 发布端口会被 Docker
+    # DOCKER 链无条件 ACCEPT 打穿 DMZ 隔离), 验证改一次性容器网内 nc。
 
     cases.append(VulnTestCase(
-        id="N1", name="MySQL service exposed",
+        id="N1", name="MySQL reachable inside bm-internal (not published)",
         scenario_id="S7", scenario_name="infrastructure",
-        method="TCP", path="localhost:13306", host="",
+        method="TCP", path="172.21.0.20:3306", host="",
         expected_flags=["TCP_OPEN"],
         severity="medium",
+        via_container_network=_INTERNAL_NETWORK,
     ))
 
     cases.append(VulnTestCase(
-        id="N2", name="Redis service exposed",
+        id="N2", name="Redis reachable inside bm-internal (not published)",
         scenario_id="S7", scenario_name="infrastructure",
-        method="TCP", path="localhost:6379", host="",
+        method="TCP", path="172.21.0.21:6379", host="",
         expected_flags=["TCP_OPEN"],
         severity="medium",
+        via_container_network=_INTERNAL_NETWORK,
     ))
 
     cases.append(VulnTestCase(
-        id="N3", name="MongoDB service exposed",
+        id="N3", name="MongoDB reachable inside bm-internal (not published)",
         scenario_id="S7", scenario_name="infrastructure",
-        method="TCP", path="localhost:27017", host="",
+        method="TCP", path="172.21.0.22:27017", host="",
         expected_flags=["TCP_OPEN"],
         severity="medium",
+        via_container_network=_INTERNAL_NETWORK,
     ))
 
     # ═══════════════════════════════════════════════════════════════
@@ -1152,7 +1183,14 @@ class VulnVerifier:
         host = parts[0]
         port = int(parts[1]) if len(parts) > 1 else 80
 
-        is_open = _tcp_check(host, port, timeout=3)
+        # spec 31: via_container_network 非空时经一次性容器在网内探测。
+        if tc.via_container_network:
+            is_open = _tcp_check_via_container(
+                tc.via_container_network, host, port, timeout=3)
+            via = f" (via container {tc.via_container_network})"
+        else:
+            is_open = _tcp_check(host, port, timeout=3)
+            via = ""
 
         return VulnTestResult(
             test_id=tc.id,
@@ -1161,8 +1199,8 @@ class VulnVerifier:
             scenario_name=tc.scenario_name,
             verified=is_open,
             status_code=None,
-            response_snippet=f"TCP {'OPEN' if is_open else 'CLOSED'}",
-            error=None if is_open else f"TCP connection to {host}:{port} failed",
+            response_snippet=f"TCP {'OPEN' if is_open else 'CLOSED'}{via}",
+            error=None if is_open else f"TCP connection to {host}:{port}{via} failed",
             matched_flags=["TCP_OPEN"] if is_open else [],
             missing_flags=[] if is_open else ["TCP_OPEN"],
             severity=tc.severity,
